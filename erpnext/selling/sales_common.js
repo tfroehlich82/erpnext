@@ -66,7 +66,8 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 		if(this.frm.fields_dict["items"].grid.get_field('item_code')) {
 			this.frm.set_query("item_code", "items", function() {
 				return {
-					query: "erpnext.controllers.queries.item_query"
+					query: "erpnext.controllers.queries.item_query",
+					filters: {'is_sales_item': 1}
 				}
 			});
 		}
@@ -79,7 +80,7 @@ erpnext.selling.SellingController = erpnext.TransactionController.extend({
 				} else {
 					filters = {
 						'item_code': item.item_code,
-						'posting_date': me.frm.doc.posting_date || nowdate(),
+						'posting_date': me.frm.doc.posting_date || frappe.datetime.nowdate(),
 					}
 					if(item.warehouse) filters["warehouse"] = item.warehouse
 

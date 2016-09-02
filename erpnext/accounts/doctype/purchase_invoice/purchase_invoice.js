@@ -232,7 +232,8 @@ cur_frm.fields_dict['contact_person'].get_query = function(doc, cdt, cdn) {
 
 cur_frm.fields_dict['items'].grid.get_field("item_code").get_query = function(doc, cdt, cdn) {
 	return {
-		query: "erpnext.controllers.queries.item_query"
+		query: "erpnext.controllers.queries.item_query",
+		filters: {'is_purchase_item': 1}
 	}
 }
 
@@ -339,14 +340,20 @@ frappe.ui.form.on("Purchase Invoice", {
 		$.each(["warehouse", "rejected_warehouse"], function(i, field) {
 			frm.set_query(field, "items", function() {
 				return {
-					filters: [["Warehouse", "company", "in", ["", cstr(frm.doc.company)]]]
+					filters: [
+						["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
+						["Warehouse", "is_group", "=", 0]
+					]
 				}
 			})
 		})
 
 		frm.set_query("supplier_warehouse", function() {
 			return {
-				filters: [["Warehouse", "company", "in", ["", cstr(frm.doc.company)]]]
+				filters: [
+					["Warehouse", "company", "in", ["", cstr(frm.doc.company)]],
+					["Warehouse", "is_group", "=", 0]
+				]
 			}
 		})
 	},
