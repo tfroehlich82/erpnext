@@ -302,6 +302,9 @@ class PurchaseInvoice(BuyingController):
 				asset.save()
 
 	def make_gl_entries(self, repost_future_gle=True):
+		if not self.grand_total:
+			return
+		
 		self.auto_accounting_for_stock = \
 			cint(frappe.defaults.get_global_default("auto_accounting_for_stock"))
 
@@ -369,7 +372,7 @@ class PurchaseInvoice(BuyingController):
 			if flt(item.base_net_amount):
 				account_currency = get_account_currency(item.expense_account)
 
-				if self.update_stock and self.auto_accounting_for_stock:
+				if self.update_stock and self.auto_accounting_for_stock and item.item_code in stock_items:
 					val_rate_db_precision = 6 if cint(item.precision("valuation_rate")) <= 6 else 9
 
 					# warehouse account

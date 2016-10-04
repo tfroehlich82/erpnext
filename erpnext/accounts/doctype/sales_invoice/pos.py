@@ -15,13 +15,11 @@ def get_pos_data():
 	doc = frappe.new_doc('Sales Invoice')
 	doc.is_pos = 1;
 	pos_profile = get_pos_profile(doc.company) or {}
+	if not doc.company: doc.company = pos_profile.get('company')
 	doc.update_stock = pos_profile.get('update_stock')
 
 	if pos_profile.get('name'):
 		pos_profile = frappe.get_doc('POS Profile', pos_profile.get('name'))
-	else:
-		frappe.msgprint('<a href="#List/POS Profile">'
-			+ _("Welcome to POS: Create your POS Profile") + '</a>');
 
 	company_data = get_company_data(doc.company)
 	update_pos_profile_data(doc, pos_profile, company_data)
@@ -66,7 +64,7 @@ def update_pos_profile_data(doc, pos_profile, company_data):
 	doc.naming_series = pos_profile.get('naming_series') or 'SINV-'
 	doc.letter_head = pos_profile.get('letter_head') or company_data.default_letter_head
 	doc.ignore_pricing_rule = pos_profile.get('ignore_pricing_rule') or 0
-	doc.apply_discount_on = pos_profile.get('apply_discount_on') or ''
+	doc.apply_discount_on = pos_profile.get('apply_discount_on') if pos_profile.get('apply_discount') else ''
 	doc.customer_group = pos_profile.get('customer_group') or get_root('Customer Group')
 	doc.territory = pos_profile.get('territory') or get_root('Territory')
 
