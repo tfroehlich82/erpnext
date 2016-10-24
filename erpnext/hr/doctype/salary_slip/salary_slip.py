@@ -20,6 +20,7 @@ class SalarySlip(TransactionBase):
 		self.name = make_autoname('Sal Slip/' +self.employee + '/.#####')
 
 	def validate(self):
+		self.status = self.get_status()
 		self.validate_dates()
 		self.check_existing()
 		self.set_month_dates()
@@ -31,7 +32,7 @@ class SalarySlip(TransactionBase):
 			self.get_leave_details(lwp = self.leave_without_pay)
 
 		# if self.salary_slip_based_on_timesheet or not self.net_pay:
-		# 	self.calculate_net_pay()
+		self.calculate_net_pay()
 
 		company_currency = get_company_currency(self.company)
 		self.total_in_words = money_in_words(self.rounded_total, company_currency)
@@ -52,29 +53,40 @@ class SalarySlip(TransactionBase):
 
 		data = self.get_data_for_eval()
 		for key in ('earnings', 'deductions'):
-			for d in self._salary_structure_doc.get(key):
-				amount = self.eval_condition_and_formula(d, data)				
+			for struct_row in self._salary_structure_doc.get(key):
+				amount = self.eval_condition_and_formula(struct_row, data)	
 				if amount:
-					self.append(key, {
-						'amount': amount,
-						'default_amount': amount,
-						'depends_on_lwp' : d.depends_on_lwp,
-						'salary_component' : d.salary_component
-					})
+					self.update_component_row(struct_row, amount, key)
+					
+					
+	def update_component_row(self, struct_row, amount, key):
+		component_row = None
+		for d in self.get(key):
+			if d.salary_component == struct_row.salary_component:
+				component_row = d
+		
+		if not component_row:
+			self.append(key, {
+				'amount': amount,
+				'default_amount': amount,
+				'depends_on_lwp' : struct_row.depends_on_lwp,
+				'salary_component' : struct_row.salary_component
+			})
+		else:
+			component_row.amount = amount
 	
 	def eval_condition_and_formula(self, d, data):
 		try:
 			if d.condition:
 				if not eval(d.condition, None, data):
-					return None
-	
+					return None	
 			amount = d.amount
 			if d.amount_based_on_formula:
 				if d.formula:
 					amount = eval(d.formula, None, data)
-	
 				data[d.abbr] = amount
 			return amount
+			
 		except NameError as err:
 		    frappe.throw(_("Name error: {0}".format(err)))
 		except SyntaxError as err:
@@ -92,6 +104,7 @@ class SalarySlip(TransactionBase):
 				data.base, data.variable = d.base, d.variable
 	
 		data.update(frappe.get_doc("Employee", self.employee).as_dict())
+		data.update(self.as_dict())
 
 		# set values for components
 		salary_components = frappe.get_all("Salary Component", fields=["salary_component_abbr"])
@@ -141,21 +154,18 @@ class SalarySlip(TransactionBase):
 
 	def check_sal_struct(self, joining_date, relieving_date):
 		st_name = frappe.db.sql("""select parent from `tabSalary Structure Employee`
-			where employee=%s order by modified desc limit 1""",self.employee)
+			where employee=%s
+			and parent in (select name from `tabSalary Structure`
+				where is_active = 'Yes'
+				and (from_date <= %s or from_date <= %s)
+				and (to_date is null or to_date >= %s or to_date >= %s))
+			""",(self.employee, self.start_date, joining_date, self.end_date, relieving_date))
 			
 		if st_name:
-			struct = frappe.db.sql("""select name from `tabSalary Structure`
-				where name=%s and is_active = 'Yes'
-				and (from_date <= %s or from_date <= %s)
-				and (to_date is null or to_date >= %s or to_date >= %s) order by from_date desc limit 1""",
-				(st_name, self.start_date, joining_date, self.end_date, relieving_date))
-
-			if not struct:
-				self.salary_structure = None
-				frappe.throw(_("No active or default Salary Structure found for employee {0} for the given dates")
-					.format(self.employee), title=_('Salary Structure Missing'))
-
-			return struct and struct[0][0] or ''
+			if len(st_name) > 1:
+				frappe.msgprint(_("Multiple active Salary Structures found for employee {0} for the given dates")
+					.format(self.employee), title=_('Warning'))
+			return st_name and st_name[0][0] or ''
 		else:
 			self.salary_structure = None
 			frappe.throw(_("No active or default Salary Structure found for employee {0} for the given dates")
@@ -267,24 +277,26 @@ class SalarySlip(TransactionBase):
 		holidays = [cstr(i) for i in holidays]
 
 		return holidays
-
+	
 	def calculate_lwp(self, holidays, working_days):
 		lwp = 0
+		holidays = "','".join(holidays)
 		for d in range(working_days):
 			dt = add_days(cstr(getdate(self.start_date)), d)
-			if dt not in holidays:
-				leave = frappe.db.sql("""
-					select t1.name, t1.half_day
-					from `tabLeave Application` t1, `tabLeave Type` t2
-					where t2.name = t1.leave_type
-					and t2.is_lwp = 1
-					and t1.docstatus = 1
-					and t1.employee = %s
-					and %s between from_date and to_date
-				""", (self.employee, dt))
-				if leave:
-					lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
-		return lwp
+			leave = frappe.db.sql("""
+				select t1.name, t1.half_day
+				from `tabLeave Application` t1, `tabLeave Type` t2
+				where t2.name = t1.leave_type
+				and t2.is_lwp = 1
+				and t1.docstatus = 1
+				and t1.employee = %(employee)s
+				and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date
+				WHEN t2.include_holiday THEN %(dt)s between from_date and to_date
+				END
+				""".format(holidays), {"employee": self.employee, "dt": dt})
+			if leave:
+				lwp = cint(leave[0][1]) and (lwp + 0.5) or (lwp + 1)
+		return lwp	
 
 	def check_existing(self):
 		if not self.salary_slip_based_on_timesheet:
@@ -312,7 +324,8 @@ class SalarySlip(TransactionBase):
 			self.set(total_field, self.get(total_field) + flt(d.amount))
 
 	def calculate_net_pay(self):
-		self.calculate_component_amounts()
+		if self.salary_structure:
+			self.calculate_component_amounts()
 
 		disable_rounded_total = cint(frappe.db.get_value("Global Defaults", None, "disable_rounded_total"))
 
@@ -327,16 +340,21 @@ class SalarySlip(TransactionBase):
 			self.precision("net_pay") if disable_rounded_total else 0)
 
 	def on_submit(self):
-		self.update_status(self.name)
-		if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")):
-			self.email_salary_slip()
+		if self.net_pay < 0:
+			frappe.throw(_("Net Pay cannot be less than 0"))
+		else:
+			self.set_status()
+			self.update_status(self.name)
+			if(frappe.db.get_single_value("HR Settings", "email_salary_slip_to_employee")):
+				self.email_salary_slip()
 
 	def on_cancel(self):
+		self.set_status()
 		self.update_status()
 
 	def email_salary_slip(self):
-		receiver = frappe.db.get_value("Employee", self.employee, "company_email") or \
-			frappe.db.get_value("Employee", self.employee, "personal_email")
+		receiver = frappe.db.get_value("Employee", self.employee, "prefered_email")
+
 		if receiver:
 			subj = 'Salary Slip - from {0} to {1}, fiscal year {2}'.format(self.start_date, self.end_date, self.fiscal_year)
 			frappe.sendmail([receiver], subject=subj, message = _("Please see attachment"),
@@ -352,3 +370,29 @@ class SalarySlip(TransactionBase):
 				timesheet.flags.ignore_validate_update_after_submit = True
 				timesheet.set_status()
 				timesheet.save()
+				
+	def set_status(self, status=None):
+		'''Get and update status'''
+		if not status:
+			status = self.get_status()
+		self.db_set("status", status)
+
+	def get_status(self):
+		if self.docstatus == 0:
+			status = "Draft"
+		elif self.docstatus == 1:
+			status = "Submitted"
+			if self.journal_entry:
+				status = "Paid"
+		elif self.docstatus == 2:
+			status = "Cancelled"
+		return status	
+
+def unlink_ref_doc_from_salary_slip(ref_no):
+	linked_ss = frappe.db.sql_list("""select name from `tabSalary Slip`
+	where journal_entry=%s and docstatus < 2""", (ref_no))
+	if linked_ss:
+		for ss in linked_ss:
+			ss_doc = frappe.get_doc("Salary Slip", ss)
+			frappe.db.set_value("Salary Slip", ss_doc.name, "status", "Submitted")
+			frappe.db.set_value("Salary Slip", ss_doc.name, "journal_entry", "")

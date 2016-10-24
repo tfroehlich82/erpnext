@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import unittest
 import frappe
 import erpnext
+from frappe.utils.make_random import get_random
 from frappe.utils import today, now_datetime, getdate, cstr, add_years, nowdate
 from erpnext.hr.doctype.salary_structure.salary_structure import make_salary_slip
 from erpnext.hr.doctype.leave_application.test_leave_application import make_allocation_record
@@ -16,8 +17,6 @@ class TestSalarySlip(unittest.TestCase):
 		for dt in ["Leave Application", "Leave Allocation", "Salary Slip"]:
 			frappe.db.sql("delete from `tab%s`" % dt)
 
-		make_allocation_record(leave_type="_Test Leave Type LWP")
-		
 		self.make_holiday_list()
 		frappe.db.set_value("Company", erpnext.get_default_company(), "default_holiday_list", "Salary Slip Test Holiday List")
 
@@ -41,12 +40,12 @@ class TestSalarySlip(unittest.TestCase):
 
 		self.assertEquals(ss.total_days_in_month, 31)
 		self.assertEquals(ss.payment_days, 31)
-		self.assertEquals(ss.earnings[0].amount, 0)
-		self.assertEquals(ss.earnings[1].amount, 0)
-		self.assertEquals(ss.deductions[0].amount, 0)
-		self.assertEquals(ss.deductions[1].amount, 0)
-		self.assertEquals(ss.gross_pay, 0)
-		self.assertEquals(ss.net_pay, 0)
+		self.assertEquals(ss.earnings[0].amount, 5000)
+		self.assertEquals(ss.earnings[1].amount, 3000)
+		self.assertEquals(ss.deductions[0].amount, 5000)
+		self.assertEquals(ss.deductions[1].amount, 2500)
+		self.assertEquals(ss.gross_pay, 10500)
+		self.assertEquals(ss.net_pay, 3000)
 
 	def test_salary_slip_with_holidays_excluded(self):
 		frappe.db.set_value("HR Settings", None, "include_holidays_in_total_working_days", 0)
@@ -58,13 +57,13 @@ class TestSalarySlip(unittest.TestCase):
 
 		self.assertEquals(ss.total_days_in_month, 27)
 		self.assertEquals(ss.payment_days, 27)
-		self.assertEquals(ss.earnings[0].amount, 0)
+		self.assertEquals(ss.earnings[0].amount, 5000)
 		self.assertEquals(ss.earnings[0].default_amount, 5000)
-		self.assertEquals(ss.earnings[1].amount, 0)
-		self.assertEquals(ss.deductions[0].amount, 0)
-		self.assertEquals(ss.deductions[1].amount, 0)
-		self.assertEquals(ss.gross_pay, 0)
-		self.assertEquals(ss.net_pay, 0)
+		self.assertEquals(ss.earnings[1].amount, 3000)
+		self.assertEquals(ss.deductions[0].amount, 5000)
+		self.assertEquals(ss.deductions[1].amount, 2500)
+		self.assertEquals(ss.gross_pay, 10500)
+		self.assertEquals(ss.net_pay, 3000)
 		
 	def test_payment_days(self):
 		# Holidays not included in working days
@@ -144,6 +143,8 @@ class TestSalarySlip(unittest.TestCase):
 				"department": frappe.get_all("Department", fields="name")[0].name,
 				"gender": "Female",
 				"company_email": user,
+				"prefered_contact_email": "Company Email",
+				"prefered_email": user,
 				"status": "Active",
 				"employment_type": "Intern"
 			}).insert()
@@ -179,6 +180,7 @@ class TestSalarySlip(unittest.TestCase):
 			salary_slip.employee_name = frappe.get_value("Employee", {"name":frappe.db.get_value("Employee", {"user_id": user})}, "employee_name")
 			salary_slip.month = "12"
 			salary_slip.fiscal_year = "_Test Fiscal Year 2016"
+			salary_slip.posting_date = nowdate()
 			salary_slip.insert()
 			# salary_slip.submit()
 			salary_slip = salary_slip.name
@@ -202,7 +204,8 @@ def make_salary_structure(sal_struct):
 			"from_date": nowdate(),
 			"employees": get_employee_details(),
 			"earnings": get_earnings_component(),
-			"deductions": get_deductions_component()			
+			"deductions": get_deductions_component(),
+			"payment_account": get_random("Account")		
 		}).insert()
 	return sal_struct
 			
