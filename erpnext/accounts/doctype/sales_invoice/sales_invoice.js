@@ -20,6 +20,13 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 		erpnext.queries.setup_queries(this.frm, "Warehouse", function() {
 			return erpnext.queries.warehouse(me.frm.doc);
 		});
+
+		if(this.frm.doc.__islocal && this.frm.doc.is_pos) {
+			//Load pos profile data on the invoice if the default value of Is POS is 1
+
+			me.frm.script_manager.trigger("is_pos");
+			me.frm.refresh_fields();
+		}
 	},
 
 	refresh: function(doc, dt, dn) {
@@ -483,20 +490,36 @@ frappe.ui.form.on('Sales Invoice', {
 frappe.ui.form.on('Sales Invoice Timesheet', {
 	time_sheet: function(frm, cdt, cdn){
 		var d = locals[cdt][cdn];
-		frappe.call({
-			method: "erpnext.projects.doctype.timesheet.timesheet.get_timesheet_data",
-			args: {
-				'name': d.time_sheet,
-				'project': frm.doc.project || null
-			},
-			callback: function(r, rt) {
-				if(r.message){
-					data = r.message;
-					frappe.model.set_value(cdt, cdn, "billing_hours", data.billing_hours);
-					frappe.model.set_value(cdt, cdn, "billing_amount", data.billing_amount);
-					frappe.model.set_value(cdt, cdn, "timesheet_detail", data.timesheet_detail);
+		if(d.time_sheet) {
+			frappe.call({
+				method: "erpnext.projects.doctype.timesheet.timesheet.get_timesheet_data",
+				args: {
+					'name': d.time_sheet,
+					'project': frm.doc.project || null
+				},
+				callback: function(r, rt) {
+					if(r.message){
+						data = r.message;
+						frappe.model.set_value(cdt, cdn, "billing_hours", data.billing_hours);
+						frappe.model.set_value(cdt, cdn, "billing_amount", data.billing_amount);
+						frappe.model.set_value(cdt, cdn, "timesheet_detail", data.timesheet_detail);
+						calculate_total_billing_amount(frm)
+					}
 				}
-			}
-		})
+			})
+		}
 	}
 })
+
+var calculate_total_billing_amount =  function(frm) {
+	var doc = frm.doc;
+
+	doc.total_billing_amount = 0.0
+	if(doc.timesheets) {
+		$.each(doc.timesheets, function(index, data){
+			doc.total_billing_amount += data.billing_amount
+		})
+	}
+
+	refresh_field('total_billing_amount')
+}

@@ -65,6 +65,7 @@ class PurchaseInvoice(BuyingController):
 		self.validate_fixed_asset()
 		self.validate_fixed_asset_account()
 		self.create_remarks()
+		self.set_status()
 
 	def validate_cash(self):
 		if not self.cash_bank_account and flt(self.paid_amount):
@@ -582,7 +583,7 @@ class PurchaseInvoice(BuyingController):
 		if not self.is_return:
 			from erpnext.accounts.utils import unlink_ref_doc_from_payment_entries
 			if frappe.db.get_single_value('Accounts Settings', 'unlink_payment_on_cancellation_of_invoice'):
-				unlink_ref_doc_from_payment_entries(self.doctype, self.name)
+				unlink_ref_doc_from_payment_entries(self)
 
 			self.update_prevdoc_status()
 			self.update_billing_status_for_zero_amount_refdoc("Purchase Order")
@@ -596,6 +597,7 @@ class PurchaseInvoice(BuyingController):
 		self.make_gl_entries_on_cancel()
 		self.update_project()
 		self.update_fixed_asset()
+		frappe.db.set(self, 'status', 'Cancelled')
 
 	def update_project(self):
 		project_list = []
