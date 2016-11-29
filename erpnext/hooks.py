@@ -32,7 +32,6 @@ notification_config = "erpnext.startup.notifications.get_notification_config"
 on_session_creation = "erpnext.shopping_cart.utils.set_cart_count"
 on_logout = "erpnext.shopping_cart.utils.clear_cart_count"
 
-remember_selected = ['Company', 'Cost Center', 'Project']
 treeviews = ['Account', 'Cost Center', 'Warehouse', 'Item Group', 'Customer Group', 'Sales Person', 'Territory', "BOM"]
 
 # website
@@ -184,16 +183,19 @@ doc_events = {
 
 scheduler_events = {
 	"hourly": [
-		"erpnext.controllers.recurring_document.create_recurring_documents"
+		"erpnext.controllers.recurring_document.create_recurring_documents",
+		'erpnext.hr.doctype.daily_work_summary_settings.daily_work_summary_settings.trigger_emails'
 	],
 	"daily": [
 		"erpnext.stock.reorder_item.reorder_item",
 		"erpnext.setup.doctype.email_digest.email_digest.send",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
+		"erpnext.controllers.accounts_controller.update_invoice_status",
 		"erpnext.accounts.doctype.fiscal_year.fiscal_year.auto_create_fiscal_year",
 		"erpnext.hr.doctype.employee.employee.send_birthday_reminders",
 		"erpnext.projects.doctype.task.task.set_tasks_as_overdue",
-		"erpnext.accounts.doctype.asset.depreciation.post_depreciation_entries"
+		"erpnext.accounts.doctype.asset.depreciation.post_depreciation_entries",
+		'erpnext.hr.doctype.daily_work_summary_settings.daily_work_summary_settings.send_summary'
 	]
 }
 
@@ -212,3 +214,5 @@ bot_parsers = [
 ]
 
 get_site_info = 'erpnext.utilities.get_site_info'
+
+payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_and_account"

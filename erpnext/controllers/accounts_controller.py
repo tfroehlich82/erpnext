@@ -63,6 +63,11 @@ class AccountsController(TransactionBase):
 		if self.doctype == 'Purchase Invoice':
 			self.validate_paid_amount()
 
+	def before_print(self):
+		if self.doctype in ['Purchase Order', 'Sales Order']:
+			if self.get("group_same_items"):
+				self.group_similar_items()
+
 	def validate_paid_amount(self):
 		if hasattr(self, "is_pos") or hasattr(self, "is_paid"):
 			is_paid = self.get("is_pos") or self.get("is_paid")
@@ -560,6 +565,43 @@ class AccountsController(TransactionBase):
 							elif asset.status in ("Scrapped", "Cancelled", "Sold"):
 								frappe.throw(_("Row #{0}: Asset {1} cannot be submitted, it is already {2}")
 									.format(d.idx, d.asset, asset.status))
+									
+	def delink_advance_entries(self, linked_doc_name):
+		total_allocated_amount = 0
+		for adv in self.advances:
+			consider_for_total_advance = True
+			if adv.reference_name == linked_doc_name:
+				frappe.db.sql("""delete from `tab{0} Advance`
+					where name = %s""".format(self.doctype), adv.name)
+				consider_for_total_advance = False
+
+			if consider_for_total_advance:
+				total_allocated_amount += flt(adv.allocated_amount, adv.precision("allocated_amount"))
+
+		frappe.db.set_value(self.doctype, self.name, "total_advance", 
+			total_allocated_amount, update_modified=False)
+
+	def group_similar_items(self):
+		group_item_qty = {}
+		group_item_amount = {}
+
+		for item in self.items:
+			group_item_qty[item.item_code] = group_item_qty.get(item.item_code, 0) + item.qty
+			group_item_amount[item.item_code] = group_item_amount.get(item.item_code, 0) + item.amount
+
+		duplicate_list = []
+
+		for item in self.items:
+			if item.item_code in group_item_qty:
+				item.qty = group_item_qty[item.item_code]
+				item.amount = group_item_amount[item.item_code]
+				del group_item_qty[item.item_code]
+			else:
+				duplicate_list.append(item)
+
+		for item in duplicate_list:
+			self.remove(item)
+
 
 @frappe.whitelist()
 def get_tax_rate(account_head):
@@ -721,3 +763,12 @@ def get_advance_payment_entries(party_type, party, party_account,
 			""".format(party_account_field), (party_account, party_type, party, payment_type), as_dict=1)
 
 	return list(payment_entries_against_order) + list(unallocated_payment_entries)
+
+def update_invoice_status():
+	# Daily update the status of the invoices
+
+	frappe.db.sql(""" update `tabSales Invoice` set status = 'Overdue' 
+		where due_date < CURDATE() and docstatus = 1 and outstanding_amount > 0""")
+
+	frappe.db.sql(""" update `tabPurchase Invoice` set status = 'Overdue' 
+		where due_date < CURDATE() and docstatus = 1 and outstanding_amount > 0""")

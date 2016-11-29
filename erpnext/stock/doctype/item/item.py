@@ -141,7 +141,7 @@ class Item(WebsiteGenerator):
 
 	def make_route(self):
 		if not self.route:
-			return frappe.db.get_value('Item Group', self.item_group, 'route') + '/' + self.scrub(self.item_name)
+			return cstr(frappe.db.get_value('Item Group', self.item_group, 'route')) + '/' + self.scrub(self.item_name)
 
 	def get_parents(self, context):
 		item_group, route = frappe.db.get_value('Item Group', self.item_group, ['name', 'route'])
@@ -567,7 +567,7 @@ class Item(WebsiteGenerator):
 		existing_allow_negative_stock = frappe.db.get_value("Stock Settings", None, "allow_negative_stock")
 		frappe.db.set_value("Stock Settings", None, "allow_negative_stock", 1)
 
-		for warehouse in frappe.db.sql("select name from `tabWarehouse` where is_group = 0"):
+		for warehouse in frappe.db.sql("select warehouse from `tabBin` where item_code=%s", new_name):
 			repost_stock(new_name, warehouse[0])
 
 		frappe.db.set_value("Stock Settings", None, "allow_negative_stock", existing_allow_negative_stock)

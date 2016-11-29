@@ -322,18 +322,7 @@ def make_sales_invoice(source_name, target=None):
 @frappe.whitelist()
 def make_salary_slip(source_name, target_doc=None):
 	target = frappe.new_doc("Salary Slip")
-	set_missing_values(source_name, target)
-	
-	target.append("timesheets", get_mapped_doc("Timesheet", source_name, {
-		"Timesheet": {
-			"doctype": "Salary Slip Timesheet",
-			"field_map": {
-				"total_hours": "working_hours",
-				"name": "time_sheet"
-			},
-		}
-	}))
-	
+	set_missing_values(source_name, target)	
 	target.run_method("get_emp_and_leave_details")
 
 	return target
@@ -373,7 +362,7 @@ def get_events(start, end, filters=None):
 		from `tabTimesheet Detail`, `tabTimesheet` 
 		where `tabTimesheet Detail`.parent = `tabTimesheet`.name 
 			and `tabTimesheet`.docstatus < 2 
-			and (from_time between %(start)s and %(end)s) {conditions} {match_cond}
+			and (from_time <= %(end)s and to_time >= %(start)s) {conditions} {match_cond}
 		""".format(conditions=conditions, match_cond = get_match_cond('Timesheet')), 
 		{
 			"start": start,
