@@ -20,6 +20,9 @@ class OverlapError(frappe.ValidationError): pass
 class OverProductionLoggedError(frappe.ValidationError): pass
 
 class Timesheet(Document):
+	def onload(self):
+		self.get("__onload").maintain_bill_work_hours_same = frappe.db.get_single_value('HR Settings', 'maintain_bill_work_hours_same')
+
 	def validate(self):
 		self.set_employee_name()
 		self.set_status()
@@ -356,7 +359,8 @@ def get_events(start, end, filters=None):
 	conditions = get_conditions(filters)
 	return frappe.db.sql("""select `tabTimesheet Detail`.name as name, 
 			`tabTimesheet Detail`.docstatus as status, `tabTimesheet Detail`.parent as parent,
-			from_time as start_date, hours, activity_type, project, to_time as end_date
+			from_time as start_date, hours, activity_type, project, to_time as end_date, 
+			CONCAT(`tabTimesheet Detail`.parent, ' (', ROUND(hours,2),' hrs)') as title 
 		from `tabTimesheet Detail`, `tabTimesheet` 
 		where `tabTimesheet Detail`.parent = `tabTimesheet`.name 
 			and `tabTimesheet`.docstatus < 2 
