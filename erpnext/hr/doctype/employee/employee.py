@@ -26,6 +26,8 @@ class Employee(Document):
 				self.name = make_autoname(self.naming_series + '.####')
 			elif naming_method == 'Employee Number':
 				self.name = self.employee_number
+			elif naming_method == 'Full Name':
+				self.name = self.employee_name
 
 		self.employee = self.name
 
@@ -161,11 +163,11 @@ class Employee(Document):
 
 def get_timeline_data(doctype, name):
 	'''Return timeline for attendance'''
-	return dict(frappe.db.sql('''select unix_timestamp(att_date), count(*)
+	return dict(frappe.db.sql('''select unix_timestamp(attendance_date), count(*)
 		from `tabAttendance` where employee=%s
-			and att_date > date_sub(curdate(), interval 1 year)
+			and attendance_date > date_sub(curdate(), interval 1 year)
 			and status in ('Present', 'Half Day')
-			group by att_date''', name))
+			group by attendance_date''', name))
 
 @frappe.whitelist()
 def get_retirement_date(date_of_birth=None):
@@ -271,7 +273,7 @@ def create_user(employee, user = None):
 		last_name = employee_name[1]
 
 	first_name = employee_name[0]
-	
+
 	user = frappe.new_doc("User")
 	user.update({
 		"name": emp.employee_name,
