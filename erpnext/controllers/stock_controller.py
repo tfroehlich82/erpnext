@@ -9,6 +9,7 @@ import frappe.defaults
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext.accounts.general_ledger import make_gl_entries, delete_gl_entries, process_gl_map
 from erpnext.controllers.accounts_controller import AccountsController
+from erpnext.stock.stock_ledger import get_valuation_rate
 
 class StockController(AccountsController):
 	def validate(self):
@@ -51,8 +52,9 @@ class StockController(AccountsController):
 						# from warehouse account
 						
 						self.check_expense_account(item_row)
-						
+
 						if not sle.stock_value_difference:
+							self.update_stock_ledger_entries(sle)
 							self.validate_negative_stock(sle)
 
 						gl_list.append(self.get_gl_dict({
@@ -84,7 +86,17 @@ class StockController(AccountsController):
 				"\n".join(warehouse_with_no_account))
 
 		return process_gl_map(gl_list)
-		
+
+	def update_stock_ledger_entries(self, sle):
+		sle.valuation_rate = get_valuation_rate(sle.item_code, sle.warehouse, 
+			sle.voucher_type, sle.voucher_no)
+		sle.stock_value = flt(sle.qty_after_transaction) * flt(sle.valuation_rate)
+		sle.stock_value_difference = sle.stock_value
+		if sle.name:
+			frappe.db.sql(""" update `tabStock Ledger Entry` set stock_value = %(stock_value)s,
+				valuation_rate = %(valuation_rate)s, stock_value_difference = %(stock_value_difference)s 
+				where name = %(name)s""", (sle))
+
 	def validate_negative_stock(self, sle):
 		if sle.qty_after_transaction < 0 and sle.actual_qty < 0:
 			frappe.throw(_("Valuation rate not found for the Item {0}, which is required to do accounting entries (for booking expenses). Please create an incoming stock transaction or mention valuation rate in Item record, and then try submiting {1} {2}")
@@ -137,7 +149,7 @@ class StockController(AccountsController):
 
 	def get_stock_ledger_details(self):
 		stock_ledger = {}
-		for sle in frappe.db.sql("""select warehouse, stock_value_difference,
+		for sle in frappe.db.sql("""select name, warehouse, stock_value_difference,
 			voucher_detail_no, item_code, posting_date, posting_time, actual_qty, qty_after_transaction
 			from `tabStock Ledger Entry` where voucher_type=%s and voucher_no=%s""",
 			(self.doctype, self.name), as_dict=True):
