@@ -89,8 +89,8 @@ class SalarySlip(TransactionBase):
 		    frappe.throw(_("Name error: {0}".format(err)))
 		except SyntaxError as err:
 		    frappe.throw(_("Syntax error in formula or condition: {0}".format(err)))
-		except:
-		    frappe.throw(_("Error in formula or condition"))
+		except Exception, e:
+		    frappe.throw(_("Error in formula or condition: {0}".format(e)))
 		    raise
 
 	def get_data_for_eval(self):
@@ -99,7 +99,7 @@ class SalarySlip(TransactionBase):
 
 		for d in self._salary_structure_doc.employees:
 			if d.employee == self.employee:
-				data.base, data.variable = d.base, d.variable
+				data.update(frappe.get_doc("Salary Structure Employee", {"employee": self.employee}).as_dict())
 
 		data.update(frappe.get_doc("Employee", self.employee).as_dict())
 		data.update(self.as_dict())
@@ -108,7 +108,6 @@ class SalarySlip(TransactionBase):
 		salary_components = frappe.get_all("Salary Component", fields=["salary_component_abbr"])
 		for salary_component in salary_components:
 			data[salary_component.salary_component_abbr] = 0
-
 		return data
 
 
@@ -284,6 +283,7 @@ class SalarySlip(TransactionBase):
 				where t2.name = t1.leave_type
 				and t2.is_lwp = 1
 				and t1.docstatus = 1
+				and t1.status = 'Approved'
 				and t1.employee = %(employee)s
 				and CASE WHEN t2.include_holiday != 1 THEN %(dt)s not in ('{0}') and %(dt)s between from_date and to_date
 				WHEN t2.include_holiday THEN %(dt)s between from_date and to_date
@@ -329,10 +329,20 @@ class SalarySlip(TransactionBase):
 
 		self.sum_components('earnings', 'gross_pay')
 		self.sum_components('deductions', 'total_deduction')
+		
+		self.set_loan_repayment()
 
-		self.net_pay = flt(self.gross_pay) - flt(self.total_deduction)
+		self.net_pay = flt(self.gross_pay) - (flt(self.total_deduction) + flt(self.loan_repayment))
 		self.rounded_total = rounded(self.net_pay,
 			self.precision("net_pay") if disable_rounded_total else 0)
+
+	def set_loan_repayment(self):
+		employee_loan = frappe.db.sql("""select sum(total_payment) as loan_repayment from `tabRepayment Schedule`
+						where payment_date between %s and %s and parent in (select name from `tabEmployee Loan`
+						where employee = %s and repay_from_salary = 1 and docstatus = 1)""",
+						(self.start_date, self.end_date, self.employee), as_dict=True)
+		if employee_loan:
+			self.loan_repayment = employee_loan[0].loan_repayment
 
 	def on_submit(self):
 		if self.net_pay < 0:

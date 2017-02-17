@@ -4,11 +4,12 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import cstr, validate_email_add, cint, comma_and, has_gravatar, nowdate
+from frappe.utils import (cstr, validate_email_add, cint, comma_and, has_gravatar,
+	getdate, nowdate)
 from frappe.model.mapper import get_mapped_doc
 
 from erpnext.controllers.selling_controller import SellingController
-from erpnext.utilities.address_and_contact import load_address_and_contact
+from frappe.geo.address_and_contact import load_address_and_contact
 from erpnext.accounts.party import set_taxes
 
 sender_field = "email_id"
@@ -45,7 +46,7 @@ class Lead(SellingController):
 
 			self.image = has_gravatar(self.email_id)
 
-		if self.contact_date and self.contact_date < nowdate():
+		if self.contact_date and getdate(self.contact_date) < nowdate():
 			frappe.throw(_("Next Contact Date cannot be in the past"))
 
 	def on_update(self):
@@ -87,7 +88,7 @@ class Lead(SellingController):
 			"lead": self.name,
 			"docstatus": 1,
 			"status": ["!=", "Lost"]
-			
+
 		})
 
 	def has_lost_quotation(self):
@@ -127,7 +128,7 @@ def _make_customer(source_name, target_doc=None, ignore_permissions=False):
 
 @frappe.whitelist()
 def make_opportunity(source_name, target_doc=None):
-	target_doc = get_mapped_doc("Lead", source_name,
+	target_doc = get_mapped_doc("Lead", source_name, 
 		{"Lead": {
 			"doctype": "Opportunity",
 			"field_map": {
@@ -154,6 +155,9 @@ def make_quotation(source_name, target_doc=None):
 			}
 		}}, target_doc)
 	target_doc.quotation_to = "Lead"
+	target_doc.run_method("set_missing_values")
+	target_doc.run_method("set_other_charges")
+	target_doc.run_method("calculate_taxes_and_totals")
 
 	return target_doc
 
