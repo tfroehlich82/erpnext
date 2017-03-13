@@ -10,6 +10,7 @@ from erpnext.accounts.utils import get_balance_on, get_account_currency
 from erpnext.setup.utils import get_company_currency
 from erpnext.accounts.party import get_party_account
 from erpnext.hr.doctype.expense_claim.expense_claim import update_reimbursed_amount
+from erpnext.hr.doctype.employee_loan.employee_loan import update_disbursement_status
 
 class JournalEntry(AccountsController):
 	def __init__(self, arg1, arg2=None):
@@ -38,22 +39,15 @@ class JournalEntry(AccountsController):
 		self.validate_credit_debit_note()
 		self.validate_empty_accounts_table()
 		self.set_account_and_party_balance()
-		self.clear_zero_debit_credit_row()
 		if not self.title:
 			self.title = self.get_title()
-
-	def clear_zero_debit_credit_row(self):
-		self.accounts = [account for account in self.accounts
-			if not (account.debit_in_account_currency==0.0 and account.credit_in_account_currency==0.0)]
-
-		if not self.accounts:
-			frappe.throw("Debit or Credit amount is not found in account table")
 
 	def on_submit(self):
 		self.check_credit_limit()
 		self.make_gl_entries()
 		self.update_advance_paid()
 		self.update_expense_claim()
+		self.update_employee_loan()
 
 	def get_title(self):
 		return self.pay_to_recd_from or self.accounts[0].account
@@ -77,6 +71,7 @@ class JournalEntry(AccountsController):
 		self.make_gl_entries(1)
 		self.update_advance_paid()
 		self.update_expense_claim()
+		self.update_employee_loan()
 		self.unlink_advance_entry_reference()
 
 	def unlink_advance_entry_reference(self):
@@ -511,6 +506,12 @@ class JournalEntry(AccountsController):
 				doc = frappe.get_doc("Expense Claim", d.reference_name)
 				update_reimbursed_amount(doc)
 
+	def update_employee_loan(self):
+		for d in self.accounts:
+			if d.reference_type=="Employee Loan" and flt(d.debit) > 0:
+				doc = frappe.get_doc("Employee Loan", d.reference_name)
+				update_disbursement_status(doc)
+
 	def validate_expense_claim(self):
 		for d in self.accounts:
 			if d.reference_type=="Expense Claim":
@@ -837,7 +838,7 @@ def get_account_balance_and_party_type(account, date, company, debit=None, credi
 
 # Added posting_date as one of the parameters of get_exchange_rate
 @frappe.whitelist()
-def get_exchange_rate(posting_date, account, account_currency=None, company=None,
+def get_exchange_rate(posting_date, account=None, account_currency=None, company=None,
 		reference_type=None, reference_name=None, debit=None, credit=None, exchange_rate=None):
 	from erpnext.setup.utils import get_exchange_rate
 	account_details = frappe.db.get_value("Account", account,

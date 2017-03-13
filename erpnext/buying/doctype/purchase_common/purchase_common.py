@@ -2,7 +2,7 @@
 # License: GNU General Public License v3. See license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, json
 from frappe.utils import flt, cstr, cint
 from frappe import _
 
@@ -72,11 +72,34 @@ class PurchaseCommon(BuyingController):
 
 		if items and len(items) != len(set(items)) and \
 			not cint(frappe.db.get_single_value("Buying Settings", "allow_multiple_items") or 0):
-			frappe.msgprint(_("Warning: Same item has been entered multiple times."), alert=True)
-
+			frappe.throw(_("Same item cannot be entered multiple times."))
 
 	def check_for_closed_status(self, doctype, docname):
 		status = frappe.db.get_value(doctype, docname, "status")
 
 		if status == "Closed":
 			frappe.throw(_("{0} {1} status is {2}").format(doctype, docname, status), frappe.InvalidStatusError)
+			
+@frappe.whitelist()
+def get_linked_material_requests(items):
+	items = json.loads(items)
+	mr_list = []
+	for item in items:
+		material_request = frappe.db.sql("""SELECT distinct mr.name AS mr_name, 
+				(mr_item.qty - mr_item.ordered_qty) AS qty, 
+				mr_item.item_code AS item_code,
+				mr_item.name AS mr_item 
+			FROM `tabMaterial Request` mr, `tabMaterial Request Item` mr_item
+			WHERE mr.name = mr_item.parent
+				AND mr_item.item_code = %(item)s 
+				AND mr.material_request_type = 'Purchase'
+				AND mr.per_ordered < 99.99
+				AND mr.docstatus = 1
+				AND mr.status != 'Stopped'
+                        ORDER BY mr_item.item_code ASC""",{"item": item}, as_dict=1)
+		if material_request:
+			mr_list.append(material_request)
+	
+	return mr_list
+	
+	

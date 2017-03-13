@@ -4,6 +4,14 @@
 // attach required files
 {% include 'erpnext/buying/doctype/purchase_common/purchase_common.js' %};
 
+frappe.ui.form.on('Suppier Quotation', {
+	setup: function() {
+		frm.custom_make_buttons = {
+			'Purchase Order': 'Purchase Order'
+		}
+	}
+});
+
 erpnext.buying.SupplierQuotationController = erpnext.buying.BuyingController.extend({
 	refresh: function() {
 		this._super();
@@ -16,6 +24,7 @@ erpnext.buying.SupplierQuotationController = erpnext.buying.BuyingController.ext
 
 		}
 		else if (this.frm.doc.docstatus===0) {
+			
 			cur_frm.add_custom_button(__('Material Request'),
 				function() {
 					erpnext.utils.map_current_doc({

@@ -86,7 +86,7 @@ frappe.ui.form.on('Stock Entry', {
 		var	args = {
 			'item_code'	: d.item_code,
 			'warehouse'	: cstr(d.s_warehouse),
-			'qty'		: d.qty
+			'stock_qty'		: d.transfer_qty
 		};
 		frappe.call({
 			method: "erpnext.stock.get_item_details.get_serial_no",
@@ -252,6 +252,7 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 			this.show_general_ledger();
 		}
 		erpnext.hide_company();
+		erpnext.utils.add_item(this.frm);
 	},
 
 	on_submit: function() {
@@ -362,7 +363,6 @@ erpnext.stock.StockEntry = erpnext.stock.StockController.extend({
 				excise.voucher_type = 'Excise Entry';
 				frappe.set_route('Form', 'Journal Entry', excise.name);
 			}, __("Make"));
-			this.frm.page.set_inner_btn_group_as_primary(__("Make"));
 	},
 
 	items_add: function(doc, cdt, cdn) {

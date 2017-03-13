@@ -6,6 +6,12 @@
 frappe.ui.form.on("Sales Order", {
 	setup: function(frm) {
 		$.extend(frm.cscript, new erpnext.selling.SalesOrderController({frm: frm}));
+		frm.custom_make_buttons = {
+			'Delivery Note': 'Delivery',
+			'Sales Invoice': 'Invoice',
+			'Material Request': 'Material Request',
+			'Purchase Order': 'Purchase Order'
+		}
 	},
 	onload: function(frm) {
 		erpnext.queries.setup_queries(frm, "Warehouse", function() {
@@ -23,7 +29,9 @@ frappe.ui.form.on("Sales Order", {
 
 		// formatter for material request item
 		frm.set_indicator_formatter('item_code',
-			function(doc) { return (doc.qty<=doc.delivered_qty) ? "green" : "orange" })
+			function(doc) { return (doc.stock_qty<=doc.delivered_qty) ? "green" : "orange" })
+
+		erpnext.queries.setup_warehouse_query(frm);
 	}
 });
 

@@ -33,6 +33,7 @@ class SalesOrder(SellingController):
 		self.validate_proj_cust()
 		self.validate_po()
 		self.validate_uom_is_integer("stock_uom", "qty")
+		self.validate_uom_is_integer("uom", "qty")
 		self.validate_for_items()
 		self.validate_warehouse()
 		self.validate_drop_ship()
@@ -157,7 +158,7 @@ class SalesOrder(SellingController):
 		self.update_reserved_qty()
 
 		frappe.get_doc('Authorization Control').validate_approving_authority(self.doctype, self.company, self.base_grand_total, self)
-
+		self.update_project()
 		self.update_prevdoc_status('submit')
 
 	def on_cancel(self):
@@ -167,10 +168,19 @@ class SalesOrder(SellingController):
 
 		self.check_nextdoc_docstatus()
 		self.update_reserved_qty()
-
+		self.update_project()
 		self.update_prevdoc_status('cancel')
 
 		frappe.db.set(self, 'status', 'Cancelled')
+		
+	def update_project(self):
+		project_list = []
+		if self.project:
+				project = frappe.get_doc("Project", self.project)
+				project.flags.dont_sync_tasks = True
+				project.update_sales_costing()
+				project.save()
+				project_list.append(self.project)				
 
 	def check_credit_limit(self):
 		from erpnext.selling.doctype.customer.customer import check_credit_limit
@@ -315,7 +325,7 @@ class SalesOrder(SellingController):
 				item_code= i.item_code,
 				bom = bom,
 				warehouse = i.warehouse,
-				pending_qty= i.qty - flt(frappe.db.sql('''select sum(qty) from `tabProduction Order`
+				pending_qty= i.stock_qty - flt(frappe.db.sql('''select sum(qty) from `tabProduction Order`
 					where production_item=%s and sales_order=%s''', (i.item_code, self.name))[0][0])
 			))
 
@@ -384,7 +394,8 @@ def make_material_request(source_name, target_doc=None):
 			"doctype": "Material Request Item",
 			"field_map": {
 				"parent": "sales_order",
-				"stock_uom": "uom"
+				"stock_uom": "uom",
+				"stock_qty": "qty"
 			},
 			"condition": lambda doc: not frappe.db.exists('Product Bundle', doc.item_code),
 			"postprocess": update_item
@@ -607,6 +618,7 @@ def make_purchase_order_for_drop_shipment(source_name, for_supplier, target_doc=
 	def update_item(source, target, source_parent):
 		target.schedule_date = source_parent.delivery_date
 		target.qty = flt(source.qty) - flt(source.ordered_qty)
+		target.stock_qty = (flt(source.qty) - flt(source.ordered_qty)) * flt(source.conversion_factor)
 
 	doclist = get_mapped_doc("Sales Order", source_name, {
 		"Sales Order": {
@@ -627,7 +639,9 @@ def make_purchase_order_for_drop_shipment(source_name, for_supplier, target_doc=
 			"field_map":  [
 				["name", "sales_order_item"],
 				["parent", "sales_order"],
-				["uom", "stock_uom"],
+				["stock_uom", "stock_uom"],
+				["uom", "uom"],
+				["conversion_factor", "conversion_factor"],
 				["delivery_date", "schedule_date"]
 			],
 			"field_no_map": [
@@ -687,6 +701,8 @@ def make_production_orders(items, sales_order, company, project=None):
 			project=project,
 			fg_warehouse=i['warehouse']
 		)).insert()
+		production_order.set_production_order_operations()
+		production_order.save()
 		out.append(production_order)
 
 	return [p.name for p in out]
