@@ -37,16 +37,8 @@ class JournalEntry(AccountsController):
 		self.validate_credit_debit_note()
 		self.validate_empty_accounts_table()
 		self.set_account_and_party_balance()
-		self.clear_zero_debit_credit_row()
 		if not self.title:
 			self.title = self.get_title()
-			
-	def clear_zero_debit_credit_row(self):
-		self.accounts = [account for account in self.accounts 
-			if not (account.debit_in_account_currency==0.0 and account.credit_in_account_currency==0.0)]
-
-		if not self.accounts:
-			frappe.throw("Debit or Credit amount is not found in account table")
 
 	def on_submit(self):
 		self.check_credit_limit()
@@ -832,7 +824,7 @@ def get_account_balance_and_party_type(account, date, company, debit=None, credi
 
 # Added posting_date as one of the parameters of get_exchange_rate
 @frappe.whitelist()
-def get_exchange_rate(posting_date, account, account_currency=None, company=None,
+def get_exchange_rate(posting_date, account=None, account_currency=None, company=None,
 		reference_type=None, reference_name=None, debit=None, credit=None, exchange_rate=None):
 	from erpnext.setup.utils import get_exchange_rate
 	account_details = frappe.db.get_value("Account", account,
