@@ -146,9 +146,33 @@ def get_data():
 					"name": "Appraisal Template",
 					"description": _("Template for performance appraisals.")
 				},
+				{
+					"type": "page",
+					"name": "team-updates",
+					"label": _("Team Updates")
+				},
 			]
 		},
-
+		{
+			"label": _("Employee Loan Management"),
+			"icon": "icon-list",
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Loan Type",
+					"description": _("Define various loan types")
+				},
+				{
+					"type": "doctype",
+					"name": "Employee Loan Application",
+					"description": _("Employee Loan Application")
+				},
+				{
+					"type": "doctype",
+					"name": "Employee Loan"
+				},
+			]
+		},
 		{
 			"label": _("Training"),
 			"items": [
@@ -166,7 +190,7 @@ def get_data():
 				},
 			]
 		},
-		
+
 		{
 			"label": _("Fleet Management"),
 			"items": [
@@ -180,8 +204,6 @@ def get_data():
 				},
 			]
 		},
-		
-
 		{
 			"label": _("Setup"),
 			"icon": "fa fa-cog",

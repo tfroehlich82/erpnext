@@ -116,7 +116,8 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Assessment Group"
+					"name": "Assessment Group",
+					"link": "Tree/Assessment Group",
 				},
 				{
 					"type": "doctype",
@@ -128,7 +129,11 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Evaluation Criteria"
+					"name": "Assessment Criteria"
+				},
+				{
+					"type": "doctype",
+					"name": "Assessment Criteria Group"
 				},
 				{
 					"type": "doctype",
@@ -156,23 +161,6 @@ def get_data():
 					"name": "Student Fee Collection",
 					"doctype": "Fees",
 					"is_query_report": True
-				}
-			]
-		},
-		{
-			"label": _("LMS"),
-			"items": [
-				{
-					"type": "doctype",
-					"name": "Announcement"
-				},
-				{
-					"type": "doctype",
-					"name": "Topic"
-				},
-				{
-					"type": "doctype",
-					"name": "Discussion"
 				}
 			]
 		},

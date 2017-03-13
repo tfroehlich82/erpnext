@@ -90,7 +90,7 @@ class ProductionOrder(Document):
 		total_qty = flt(ordered_qty_against_so) + flt(self.qty)
 
 		# get qty from Sales Order Item table
-		so_item_qty = frappe.db.sql("""select sum(qty) from `tabSales Order Item`
+		so_item_qty = frappe.db.sql("""select sum(stock_qty) from `tabSales Order Item`
 			where parent = %s and item_code = %s""",
 			(self.sales_order, self.production_item))[0][0]
 		# get qty from Packing Item table
@@ -258,13 +258,11 @@ class ProductionOrder(Document):
 
 		timesheet = make_timesheet(self.name)
 		workstation_list = []
-		last_workstation_idx = {}
 		timesheet.set('time_logs', [])
 
 		for i, d in enumerate(self.operations):
 			if d.workstation and d.status != 'Completed':
-				last_workstation_idx[d.workstation] = i # set last row index of workstation
-				self.set_start_end_time_for_workstation(d, workstation_list, last_workstation_idx.get(d.workstation))
+				self.set_start_end_time_for_workstation(d, workstation_list, i)
 
 				args = self.get_operations_data(d)
 				add_timesheet_detail(timesheet, args)
@@ -318,9 +316,8 @@ class ProductionOrder(Document):
 		"""Set start and end time for given operation. If first operation, set start as
 		`planned_start_date`, else add time diff to end time of earlier operation."""
 
-		if data.workstation not in workstation_list:
+		if index == 0:
 			data.planned_start_time = self.planned_start_date
-			workstation_list.append(data.workstation)
 		else:
 			data.planned_start_time = get_datetime(self.operations[index-1].planned_end_time)\
 								+ get_mins_between_operations()

@@ -12,6 +12,8 @@ app_email = "info@erpnext.com"
 app_license = "GNU General Public License (v3)"
 source_link = "https://github.com/frappe/erpnext"
 
+develop_version = '8.0.0-beta'
+
 error_report_email = "support@erpnext.com"
 
 app_include_js = "assets/js/erpnext.min.js"
@@ -28,6 +30,7 @@ after_install = "erpnext.setup.install.after_install"
 
 boot_session = "erpnext.startup.boot.boot_session"
 notification_config = "erpnext.startup.notifications.get_notification_config"
+get_help_messages = "erpnext.utilities.activation.get_help_messages"
 
 on_session_creation = "erpnext.shopping_cart.utils.set_cart_count"
 on_logout = "erpnext.shopping_cart.utils.clear_cart_count"
@@ -44,7 +47,7 @@ calendars = ["Task", "Production Order", "Leave Application", "Sales Order", "Ho
 
 fixtures = ["Web Form"]
 
-website_generators = ["Item Group", "Item", "Sales Partner", "Job Opening", "Student Admission"]
+website_generators = ["Item Group", "Item", "BOM", "Sales Partner", "Job Opening", "Student Admission"]
 
 website_context = {
 	"favicon": 	"/assets/erpnext/images/favicon.png",
@@ -96,9 +99,10 @@ website_route_rules = [
 	},
 	{"from_route": "/jobs", "to_route": "Job Opening"},
 	{"from_route": "/admissions", "to_route": "Student Admission"},
+	{"from_route": "/boms", "to_route": "BOM"}
 ]
 
-portal_menu_items = [
+standard_portal_menu_items = [
 	{"title": _("Projects"), "route": "/project", "reference_doctype": "Project"},
 	{"title": _("Request for Quotations"), "route": "/rfq", "reference_doctype": "Request for Quotation", "role": "Supplier"},
 	{"title": _("Supplier Quotation"), "route": "/quotations", "reference_doctype": "Supplier Quotation", "role": "Supplier"},
@@ -107,7 +111,6 @@ portal_menu_items = [
 	{"title": _("Shipments"), "route": "/shipments", "reference_doctype": "Delivery Note", "role":"Customer"},
 	{"title": _("Issues"), "route": "/issues", "reference_doctype": "Issue", "role":"Customer"},
 	{"title": _("Addresses"), "route": "/addresses", "reference_doctype": "Address"},
-	{"title": _("Announcements"), "route": "/announcement", "reference_doctype": "Announcement"},
 	{"title": _("Fees"), "route": "/fees", "reference_doctype": "Fees", "role":"Student"}
 ]
 
@@ -122,18 +125,7 @@ has_website_permission = {
 	"Sales Invoice": "erpnext.controllers.website_list_for_contact.has_website_permission",
 	"Supplier Quotation": "erpnext.controllers.website_list_for_contact.has_website_permission",
 	"Delivery Note": "erpnext.controllers.website_list_for_contact.has_website_permission",
-	"Issue": "erpnext.support.doctype.issue.issue.has_website_permission",
-	"Discussion": "erpnext.schools.web_form.discussion.discussion.has_website_permission"
-}
-
-permission_query_conditions = {
-	"Contact": "erpnext.utilities.address_and_contact.get_permission_query_conditions_for_contact",
-	"Address": "erpnext.utilities.address_and_contact.get_permission_query_conditions_for_address"
-}
-
-has_permission = {
-	"Contact": "erpnext.utilities.address_and_contact.has_permission",
-	"Address": "erpnext.utilities.address_and_contact.has_permission"
+	"Issue": "erpnext.support.doctype.issue.issue.has_website_permission"
 }
 
 dump_report_map = "erpnext.startup.report_data_map.data_map"
@@ -153,18 +145,11 @@ doc_events = {
 		"after_insert": "frappe.email.doctype.contact.contact.update_contact",
 		"validate": "erpnext.hr.doctype.employee.employee.validate_employee_role",
 		"on_update": "erpnext.hr.doctype.employee.employee.update_user_permissions",
-		"on_update": "erpnext.utilities.address_and_contact.set_default_role"
+		"on_update": "frappe.geo.address_and_contact.set_default_role"
 	},
 	("Sales Taxes and Charges Template", 'Price List'): {
 		"on_update": "erpnext.shopping_cart.doctype.shopping_cart_settings.shopping_cart_settings.validate_cart_settings"
 	},
-
-	# bubble transaction notification on master
-	('Opportunity', 'Quotation', 'Sales Order', 'Delivery Note', 'Sales Invoice',
-		'Supplier Quotation', 'Purchase Order', 'Purchase Receipt',
-		'Purchase Invoice', 'Project', 'Issue'): {
-			'on_change': 'erpnext.accounts.party_status.notify_status'
-		},
 
 	"Website Settings": {
 		"validate": "erpnext.portal.doctype.products_settings.products_settings.home_page_is_products"
@@ -183,6 +168,7 @@ scheduler_events = {
 		"erpnext.stock.reorder_item.reorder_item",
 		"erpnext.setup.doctype.email_digest.email_digest.send",
 		"erpnext.support.doctype.issue.issue.auto_close_tickets",
+		"erpnext.crm.doctype.opportunity.opportunity.auto_close_opportunity",
 		"erpnext.controllers.accounts_controller.update_invoice_status",
 		"erpnext.accounts.doctype.fiscal_year.fiscal_year.auto_create_fiscal_year",
 		"erpnext.hr.doctype.employee.employee.send_birthday_reminders",

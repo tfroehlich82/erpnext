@@ -7,23 +7,34 @@ cur_frm.add_fetch("examiner", "instructor_name", "examiner_name");
 cur_frm.add_fetch("supervisor", "instructor_name", "supervisor_name");
 
 frappe.ui.form.on("Assessment Plan", {
+        refresh: function(frm) {
+        if (!frm.doc.__islocal) {
+            frm.add_custom_button(__("Assessment Result"), function() {
+                frappe.route_options = {
+                    assessment_plan: frm.doc.name
+                }
+                frappe.set_route("Form", "Assessment Result Tool");
+            });
+        }
+    },
+
     course: function(frm) {
         if (frm.doc.course && frm.doc.maximum_assessment_score) {
             frappe.call({
-                method: "erpnext.schools.api.get_evaluation_criterias",
+                method: "erpnext.schools.api.get_assessment_criteria",
                 args: {
                     course: frm.doc.course
                 },
                 callback: function(r) {
                     if (r.message) {
-                        frm.doc.evaluation_criterias = [];
+                        frm.doc.assessment_criteria = [];
                         $.each(r.message, function(i, d) {
-                            var row = frappe.model.add_child(frm.doc, "Assessment Evaluation Criteria", "evaluation_criterias");
-                            row.evaluation_criteria = d.evaluation_criteria;
+                            var row = frappe.model.add_child(frm.doc, "Assessment Plan Criteria", "assessment_criteria");
+                            row.assessment_criteria = d.assessment_criteria;
                             row.maximum_score = d.weightage / 100 * frm.doc.maximum_assessment_score;
                         });
                     }
-                    refresh_field("evaluation_criterias");
+                    refresh_field("assessment_criteria");
 
                 }
             });

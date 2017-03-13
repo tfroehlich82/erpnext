@@ -8,6 +8,10 @@ cur_frm.add_fetch('contact', 'email_id', 'email_id')
 
 frappe.ui.form.on("Request for Quotation",{
 	setup: function(frm) {
+		frm.custom_make_buttons = {
+			'Supplier Quotation': 'Supplier Quotation'
+		}
+
 		frm.fields_dict["suppliers"].grid.get_field("contact").get_query = function(doc, cdt, cdn){
 			var d =locals[cdt][cdn];
 			return {
@@ -43,6 +47,7 @@ frappe.ui.form.on("Request for Quotation",{
 				});
 			});
 		}
+		
 	},
 
 	make_suppplier_quotation: function(frm) {
@@ -134,7 +139,6 @@ erpnext.buying.RequestforQuotationController = erpnext.buying.BuyingController.e
 						}
 					})
 				}, __("Get items from"));
-				
 				// Get items from open Material Requests based on supplier
 				cur_frm.add_custom_button(__('Possible Supplier'), function() {
 					// Create a dialog window for the user to pick their supplier
@@ -170,6 +174,7 @@ erpnext.buying.RequestforQuotationController = erpnext.buying.BuyingController.e
 					}	
 					d.show();
 				}, __("Get items from"));
+				
 		}
 	},
 
