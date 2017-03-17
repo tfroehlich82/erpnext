@@ -21,6 +21,10 @@ app_include_css = "assets/css/erpnext.css"
 web_include_js = "assets/js/erpnext-web.min.js"
 web_include_css = "assets/erpnext/css/website.css"
 
+doctype_js = {
+	"Communication": "public/js/communication.js",
+}
+
 # setup wizard
 setup_wizard_requires = "assets/erpnext/js/setup_wizard.js"
 setup_wizard_complete = "erpnext.setup.setup_wizard.setup_wizard.setup_complete"
@@ -194,4 +198,4 @@ bot_parsers = [
 
 get_site_info = 'erpnext.utilities.get_site_info'
 
-payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_and_account"
+payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_account"

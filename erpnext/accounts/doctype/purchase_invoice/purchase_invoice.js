@@ -6,6 +6,10 @@ frappe.provide("erpnext.accounts");
 
 
 erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
+	setup: function(doc) {
+		this.setup_posting_date_time_check();
+		this._super(doc);
+	},
 	onload: function() {
 		this._super();
 
@@ -40,7 +44,7 @@ erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 			}
 
 			if(doc.outstanding_amount >= 0 || Math.abs(flt(doc.outstanding_amount)) < flt(doc.grand_total)) {
-				cur_frm.add_custom_button(doc.update_stock ? __('Purchase Return') : __('Debit Note'),
+				cur_frm.add_custom_button(__('Return / Debit Note'),
 					this.make_debit_note, __("Make"));
 			}
 		}
