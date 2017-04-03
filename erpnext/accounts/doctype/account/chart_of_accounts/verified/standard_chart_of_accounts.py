@@ -107,7 +107,7 @@ def get():
 	            _("Office Maintenance Expenses"): {},
 	            _("Office Rent"): {},
 	            _("Postal Expenses"): {},
-	            _("Print and Stationary"): {},
+	            _("Print and Stationery"): {},
 	            _("Round Off"): {
 	                "account_type": "Round Off"
 	            },

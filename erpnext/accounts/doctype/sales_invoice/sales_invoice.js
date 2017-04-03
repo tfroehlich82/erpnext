@@ -6,6 +6,8 @@ cur_frm.pformat.print_heading = 'Invoice';
 
 {% include 'erpnext/selling/sales_common.js' %};
 
+cur_frm.add_fetch('customer', 'tax_id', 'tax_id');
+
 frappe.provide("erpnext.accounts");
 erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.extend({
 	setup: function(doc) {
@@ -325,6 +327,7 @@ cur_frm.cscript.hide_fields = function(doc) {
 
 cur_frm.cscript.update_stock = function(doc, dt, dn) {
 	cur_frm.cscript.hide_fields(doc, dt, dn);
+	this.frm.fields_dict.items.grid.toggle_reqd("item_code", doc.update_stock? true: false)
 }
 
 cur_frm.cscript['Make Delivery Note'] = function() {

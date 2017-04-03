@@ -3,6 +3,8 @@
 
 {% include 'erpnext/selling/sales_common.js' %}
 
+cur_frm.add_fetch('customer', 'tax_id', 'tax_id');
+
 frappe.ui.form.on("Sales Order", {
 	setup: function(frm) {
 		$.extend(frm.cscript, new erpnext.selling.SalesOrderController({frm: frm}));
@@ -177,11 +179,11 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 							fields: [
 								{fieldtype:'Read Only', fieldname:'item_code',
 									label: __('Item Code'), in_list_view:1},
-								{fieldtype:'Link', fieldname:'bom', options: 'BOM',
+								{fieldtype:'Link', fieldname:'bom', options: 'BOM', reqd: 1,
 									label: __('Select BOM'), in_list_view:1, get_query: function(doc) {
 										return {filters: {item: doc.item_code}};
 									}},
-								{fieldtype:'Float', fieldname:'pending_qty',
+								{fieldtype:'Float', fieldname:'pending_qty', reqd: 1,
 									label: __('Qty'), in_list_view:1},
 							],
 							get_data: function() {

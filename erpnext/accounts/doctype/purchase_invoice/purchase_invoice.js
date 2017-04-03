@@ -2,8 +2,7 @@
 // License: GNU General Public License v3. See license.txt
 
 frappe.provide("erpnext.accounts");
-{% include 'erpnext/buying/doctype/purchase_common/purchase_common.js' %};
-
+{% include 'erpnext/public/js/controllers/buying.js' %};
 
 erpnext.accounts.PurchaseInvoice = erpnext.buying.BuyingController.extend({
 	setup: function(doc) {
@@ -209,6 +208,7 @@ function hide_fields(doc) {
 
 cur_frm.cscript.update_stock = function(doc, dt, dn) {
 	hide_fields(doc, dt, dn);
+	this.frm.fields_dict.items.grid.toggle_reqd("item_code", doc.update_stock? true: false)
 }
 
 cur_frm.fields_dict.cash_bank_account.get_query = function(doc) {

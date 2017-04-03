@@ -97,7 +97,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			});
 
 			if(this.frm.doc.company && !this.frm.doc.amended_from) {
-				this.frm.script_manager.trigger("company");
+				this.frm.trigger("company");
 			}
 		}
 
@@ -295,7 +295,7 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 
 		if (item.serial_no) {
 			if (!item.item_code) {
-				this.frm.script_manager.trigger("item_code", cdt, cdn);
+				this.frm.trigger("item_code", cdt, cdn);
 			}
 			else {
 				var sr_no = [];
@@ -761,7 +761,8 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 			"sales_partner": me.frm.doc.sales_partner,
 			"ignore_pricing_rule": me.frm.doc.ignore_pricing_rule,
 			"doctype": me.frm.doc.doctype,
-			"name": me.frm.doc.name
+			"name": me.frm.doc.name,
+			"is_return": cint(me.frm.doc.is_return)
 		};
 	},
 
@@ -1080,5 +1081,4 @@ erpnext.TransactionController = erpnext.taxes_and_totals.extend({
 
 		return method
 	},
-
 });
