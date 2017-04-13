@@ -182,6 +182,7 @@ def get_customers_address(customers):
 			address_data = address[0]
 			address_data.update({'full_name': data.customer_name})
 			customer_address[data.name] = address_data
+
 	return customer_address
 
 def get_child_nodes(group_type, root):
@@ -295,9 +296,9 @@ def make_invoice(doc_list={}, email_queue_list={}, customers_list={}):
 			if not frappe.db.exists('Sales Invoice', {'offline_pos_name': name}):
 				validate_records(doc)
 				si_doc = frappe.new_doc('Sales Invoice')
-				si_doc.due_date = doc.get('posting_date')
 				si_doc.offline_pos_name = name
 				si_doc.update(doc)
+				si_doc.due_date = doc.get('posting_date')
 				submit_invoice(si_doc, name, doc)
 				name_list.append(name)
 			else:
@@ -337,11 +338,14 @@ def add_customer(name):
 def make_address(args, customer):
 	if not args.get('address_line1'): return
 	
-	name = args.get('name') or get_customers_address(customer)[customer].get("name")
+	name = args.get('name')
+
+	if not name:
+		data = get_customers_address(customer)
+		name = data[customer].get('name') if data else None
 
 	if name:
-		address = frappe.get_doc('Address', name) 
-		frappe.errprint(address)
+		address = frappe.get_doc('Address', name)
 	else:
 		address = frappe.new_doc('Address')
 		address.country = frappe.db.get_value('Company', args.get('company'), 'country')
@@ -400,4 +404,5 @@ def save_invoice(e, si_doc, name):
 	if not frappe.db.exists('Sales Invoice', {'offline_pos_name': name}):
 		si_doc.docstatus = 0
 		si_doc.flags.ignore_mandatory = True
+		si_doc.due_date = si_doc.posting_date
 		si_doc.insert()
