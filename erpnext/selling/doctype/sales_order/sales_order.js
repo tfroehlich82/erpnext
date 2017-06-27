@@ -10,7 +10,8 @@ frappe.ui.form.on("Sales Order", {
 			'Delivery Note': 'Delivery',
 			'Sales Invoice': 'Invoice',
 			'Material Request': 'Material Request',
-			'Purchase Order': 'Purchase Order'
+			'Purchase Order': 'Purchase Order',
+			'Project': 'Project'
 		}
 		frm.add_fetch('customer', 'tax_id', 'tax_id');
 	},
@@ -118,6 +119,12 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 						function() { me.make_maintenance_visit() }, __("Make"));
 					this.frm.add_custom_button(__('Maintenance Schedule'),
 						function() { me.make_maintenance_schedule() }, __("Make"));
+				}
+
+				// project
+				if(flt(doc.per_delivered, 2) < 100 && ["Sales", "Shopping Cart"].indexOf(doc.order_type)!==-1 && allow_delivery) {
+						this.frm.add_custom_button(__('Project'),
+							function() { me.make_project() }, __("Make"));
 				}
 
 			} else {
@@ -264,6 +271,13 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 		})
 	},
 
+	make_project: function() {
+		frappe.model.open_mapped_doc({
+			method: "erpnext.selling.doctype.sales_order.sales_order.make_project",
+			frm: this.frm
+		})
+	},
+
 	make_maintenance_visit: function() {
 		frappe.model.open_mapped_doc({
 			method: "erpnext.selling.doctype.sales_order.sales_order.make_maintenance_visit",
@@ -314,12 +328,13 @@ erpnext.selling.SalesOrderController = erpnext.selling.SellingController.extend(
 	},
 	update_status: function(label, status){
 		var doc = this.frm.doc;
+		var me = this;
 		frappe.ui.form.is_saving = true;
 		frappe.call({
 			method: "erpnext.selling.doctype.sales_order.sales_order.update_status",
 			args: {status: status, name: doc.name},
 			callback: function(r){
-				this.frm.reload_doc();
+				me.frm.reload_doc();
 			},
 			always: function() {
 				frappe.ui.form.is_saving = false;
