@@ -36,7 +36,7 @@ def setup_complete(args=None):
 	create_customers(args)
 	create_suppliers(args)
 
-	if args.domain.lower() == 'education':
+	if args.get('domain').lower() == 'education':
 		create_academic_year()
 		create_academic_term()
 		create_program(args)
@@ -73,10 +73,10 @@ def create_fiscal_year_and_company(args):
 	if (args.get('fy_start_date')):
 		curr_fiscal_year = get_fy_details(args.get('fy_start_date'), args.get('fy_end_date'))
 		frappe.get_doc({
-		"doctype":"Fiscal Year",
-		'year': curr_fiscal_year,
-		'year_start_date': args.get('fy_start_date'),
-		'year_end_date': args.get('fy_end_date'),
+			"doctype":"Fiscal Year",
+			'year': curr_fiscal_year,
+			'year_start_date': args.get('fy_start_date'),
+			'year_end_date': args.get('fy_end_date'),
 		}).insert()
 		args["curr_fiscal_year"] = curr_fiscal_year
 
@@ -91,7 +91,8 @@ def create_fiscal_year_and_company(args):
 			'country': args.get('country'),
 			'create_chart_of_accounts_based_on': 'Standard Template',
 			'chart_of_accounts': args.get('chart_of_accounts'),
-			'domain': args.get('domain')
+			'domain': args.get('domain'),
+			'sales_target': args.get('sales_target')
 		}).insert()
 
 		#Enable shopping cart
@@ -150,7 +151,7 @@ def set_defaults(args):
 
 	global_defaults = frappe.get_doc("Global Defaults", "Global Defaults")
 	global_defaults.update({
-		'current_fiscal_year': args.curr_fiscal_year,
+		'current_fiscal_year': args.get('curr_fiscal_year'),
 		'default_currency': args.get('currency'),
 		'default_company':args.get('company_name')	,
 		"country": args.get("country"),
@@ -196,7 +197,7 @@ def set_defaults(args):
 	hr_settings.save()
 
 	domain_settings = frappe.get_doc("Domain Settings")
-	domain_settings.append('active_domains', dict(domain=args.domain))
+	domain_settings.append('active_domains', dict(domain=_(args.get('domain'))))
 	domain_settings.save()
 
 def create_feed_and_todo():
@@ -286,12 +287,9 @@ def make_tax_account_and_template(company, account_name, tax_rate, template_name
 
 		if accounts:
 			make_sales_and_purchase_tax_templates(accounts, template_name)
-	except frappe.NameError, e:
-		if e.args[2][0]==1062:
-			pass
-		else:
-			raise
-	except RootNotEditable, e:
+	except frappe.NameError:
+		pass
+	except RootNotEditable:
 		pass
 
 def get_tax_account_group(company):
@@ -351,7 +349,7 @@ def create_items(args):
 	for i in xrange(1,6):
 		item = args.get("item_" + str(i))
 		if item:
-			item_group = args.get("item_group_" + str(i))
+			item_group = _(args.get("item_group_" + str(i)))
 			is_sales_item = args.get("is_sales_item_" + str(i))
 			is_purchase_item = args.get("is_purchase_item_" + str(i))
 			is_stock_item = item_group!=_("Services")
@@ -373,7 +371,7 @@ def create_items(args):
 					"is_purchase_item": is_purchase_item,
 					"is_stock_item": is_stock_item and 1 or 0,
 					"item_group": item_group,
-					"stock_uom": args.get("item_uom_" + str(i)),
+					"stock_uom": _(args.get("item_uom_" + str(i))),
 					"default_warehouse": default_warehouse
 				}).insert()
 

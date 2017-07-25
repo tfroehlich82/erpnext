@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from frappe import _
-from . import __version__ as app_version
 
 app_name = "erpnext"
 app_title = "ERPNext"
@@ -73,11 +72,18 @@ website_route_rules = [
 			"parents": [{"title": _("Invoices"), "name": "invoices"}]
 		}
 	},
-	{"from_route": "/quotations", "to_route": "Supplier Quotation"},
-	{"from_route": "/quotations/<path:name>", "to_route": "order",
+	{"from_route": "/supplier-quotations", "to_route": "Supplier Quotation"},
+	{"from_route": "/supplier-quotations/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Supplier Quotation",
 			"parents": [{"title": _("Supplier Quotation"), "name": "quotations"}]
+		}
+	},
+	{"from_route": "/quotations", "to_route": "Quotation"},
+	{"from_route": "/quotations/<path:name>", "to_route": "order",
+		"defaults": {
+			"doctype": "Quotation",
+			"parents": [{"title": _("Quotations"), "name": "quotation"}]
 		}
 	},
 	{"from_route": "/shipments", "to_route": "Delivery Note"},
@@ -103,33 +109,38 @@ website_route_rules = [
 	},
 	{"from_route": "/jobs", "to_route": "Job Opening"},
 	{"from_route": "/admissions", "to_route": "Student Admission"},
-	{"from_route": "/boms", "to_route": "BOM"}
+	{"from_route": "/boms", "to_route": "BOM"},
+	{"from_route": "/timesheets", "to_route": "Timesheet"},
 ]
 
 standard_portal_menu_items = [
 	{"title": _("Projects"), "route": "/project", "reference_doctype": "Project"},
 	{"title": _("Request for Quotations"), "route": "/rfq", "reference_doctype": "Request for Quotation", "role": "Supplier"},
-	{"title": _("Supplier Quotation"), "route": "/quotations", "reference_doctype": "Supplier Quotation", "role": "Supplier"},
+	{"title": _("Supplier Quotation"), "route": "/supplier-quotations", "reference_doctype": "Supplier Quotation", "role": "Supplier"},
+	{"title": _("Quotations"), "route": "/quotations", "reference_doctype": "Quotation", "role":"Customer"},
 	{"title": _("Orders"), "route": "/orders", "reference_doctype": "Sales Order", "role":"Customer"},
 	{"title": _("Invoices"), "route": "/invoices", "reference_doctype": "Sales Invoice", "role":"Customer"},
 	{"title": _("Shipments"), "route": "/shipments", "reference_doctype": "Delivery Note", "role":"Customer"},
 	{"title": _("Issues"), "route": "/issues", "reference_doctype": "Issue", "role":"Customer"},
 	{"title": _("Addresses"), "route": "/addresses", "reference_doctype": "Address"},
-	{"title": _("Fees"), "route": "/fees", "reference_doctype": "Fees", "role":"Student"}
+	{"title": _("Fees"), "route": "/fees", "reference_doctype": "Fees", "role":"Student"},
+	{"title": _("Timesheets"), "route": "/timesheets", "reference_doctype": "Timesheet", "role":"Customer"}
 ]
 
 default_roles = [
 	{'role': 'Customer', 'doctype':'Contact', 'email_field': 'email_id'},
 	{'role': 'Supplier', 'doctype':'Contact', 'email_field': 'email_id'},
-	{'role': 'Student', 'doctype':'Student', 'email_field': 'student_email_id'}
+	{'role': 'Student', 'doctype':'Student', 'email_field': 'student_email_id'},
 ]
 
 has_website_permission = {
 	"Sales Order": "erpnext.controllers.website_list_for_contact.has_website_permission",
+	"Quotation": "erpnext.controllers.website_list_for_contact.has_website_permission",
 	"Sales Invoice": "erpnext.controllers.website_list_for_contact.has_website_permission",
 	"Supplier Quotation": "erpnext.controllers.website_list_for_contact.has_website_permission",
 	"Delivery Note": "erpnext.controllers.website_list_for_contact.has_website_permission",
-	"Issue": "erpnext.support.doctype.issue.issue.has_website_permission"
+	"Issue": "erpnext.support.doctype.issue.issue.has_website_permission",
+	"Timesheet": "erpnext.controllers.website_list_for_contact.has_website_permission"
 }
 
 dump_report_map = "erpnext.startup.report_data_map.data_map"
@@ -182,9 +193,13 @@ scheduler_events = {
 		"erpnext.projects.doctype.task.task.set_tasks_as_overdue",
 		"erpnext.accounts.doctype.asset.depreciation.post_depreciation_entries",
 		"erpnext.hr.doctype.daily_work_summary_settings.daily_work_summary_settings.send_summary",
-		"erpnext.stock.doctype.serial_no.serial_no.update_maintenance_status"
+		"erpnext.stock.doctype.serial_no.serial_no.update_maintenance_status",
+		"erpnext.buying.doctype.supplier_scorecard.supplier_scorecard.refresh_scorecards",
+		"erpnext.setup.doctype.company.company.cache_companies_monthly_sales_history"
 	]
 }
+
+email_brand_image = "assets/erpnext/images/erpnext-logo.jpg"
 
 default_mail_footer = """<div style="text-align: center;">
 	<a href="https://erpnext.com?source=via_email_footer" target="_blank" style="color: #8d99a6;">
@@ -203,3 +218,11 @@ bot_parsers = [
 get_site_info = 'erpnext.utilities.get_site_info'
 
 payment_gateway_enabled = "erpnext.accounts.utils.create_payment_gateway_account"
+
+regional_overrides = {
+	'India': {
+		'erpnext.tests.test_regional.test_method': 'erpnext.regional.india.utils.test_method',
+		'erpnext.controllers.taxes_and_totals.get_itemised_tax_breakup_header': 'erpnext.regional.india.utils.get_itemised_tax_breakup_header',
+		'erpnext.controllers.taxes_and_totals.get_itemised_tax_breakup_data': 'erpnext.regional.india.utils.get_itemised_tax_breakup_data'
+	}
+}
