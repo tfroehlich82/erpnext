@@ -28,7 +28,7 @@ frappe.ui.form.on("Student Applicant", {
 
 		frappe.realtime.on("enroll_student_progress", function(data) {
 			if(data.progress) {
-				frappe.hide_frappe.msgprint(true);
+				frappe.hide_msgprint(true);
 				frappe.show_progress(__("Enrolling student"), data.progress[0],data.progress[1]);
 			}
 		})
@@ -39,15 +39,12 @@ frappe.ui.form.on("Student Applicant", {
 			method: "erpnext.schools.api.enroll_student",
 			frm: frm
 		})
-	}
-});
+	},
 
-
-frappe.ui.form.on('Student Sibling', {
-	student: function(frm) {
+	setup: function(frm) {
+		frm.add_fetch("guardian", "guardian_name", "guardian_name");
 		frm.add_fetch("student", "title", "full_name");
 		frm.add_fetch("student", "gender", "gender");
 		frm.add_fetch("student", "date_of_birth", "date_of_birth");
 	}
 });
-

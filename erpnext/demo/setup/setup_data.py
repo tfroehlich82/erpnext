@@ -1,7 +1,8 @@
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import random, json
 import frappe, erpnext
+from frappe.utils.nestedset import get_root_of
 from frappe.utils import flt, now_datetime, cstr, random_string
 from frappe.utils.make_random import add_random_children, get_random
 from erpnext.demo.domains import data
@@ -41,7 +42,7 @@ def setup(domain):
 	frappe.clear_cache()
 
 def complete_setup(domain='Manufacturing'):
-	print "Complete Setup..."
+	print("Complete Setup...")
 	from frappe.desk.page.setup_wizard.setup_wizard import setup_complete
 
 	if not frappe.get_all('Company', limit=1):
@@ -361,10 +362,13 @@ def setup_pos_profile():
 	pos.update_stock = 0
 	pos.write_off_account = 'Cost of Goods Sold - '+ company_abbr
 	pos.write_off_cost_center = 'Main - '+ company_abbr
+	pos.customer_group = get_root_of('Customer Group')
+	pos.territory = get_root_of('Territory')
 
 	pos.append('payments', {
 		'mode_of_payment': frappe.db.get_value('Mode of Payment', {'type': 'Cash'}, 'name'),
-		'amount': 0.0
+		'amount': 0.0,
+		'default': 1
 	})
 
 	pos.insert()

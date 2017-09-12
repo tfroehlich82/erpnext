@@ -84,9 +84,9 @@ class PurchaseReceipt(BuyingController):
 
 	def po_required(self):
 		if frappe.db.get_value("Buying Settings", None, "po_required") == 'Yes':
-			 for d in self.get('items'):
-				 if not d.purchase_order:
-					 frappe.throw(_("Purchase Order number required for Item {0}").format(d.item_code))
+			for d in self.get('items'):
+				if not d.purchase_order:
+					frappe.throw(_("Purchase Order number required for Item {0}").format(d.item_code))
 
 	def get_already_received_qty(self, po, po_detail):
 		qty = frappe.db.sql("""select sum(qty) from `tabPurchase Receipt Item`
@@ -114,9 +114,6 @@ class PurchaseReceipt(BuyingController):
 		# Check for Approving Authority
 		frappe.get_doc('Authorization Control').validate_approving_authority(self.doctype,
 			self.company, self.base_grand_total)
-
-		# Set status as Submitted
-		frappe.db.set(self, 'status', 'Submitted')
 
 		self.update_prevdoc_status()
 		if self.per_billed < 100:
@@ -151,8 +148,6 @@ class PurchaseReceipt(BuyingController):
 			self.name)
 		if submitted:
 			frappe.throw(_("Purchase Invoice {0} is already submitted").format(submitted[0][0]))
-
-		frappe.db.set(self,'status','Cancelled')
 
 		self.update_prevdoc_status()
 		self.update_billing_status()
@@ -225,7 +220,7 @@ class PurchaseReceipt(BuyingController):
 					# sub-contracting warehouse
 					if flt(d.rm_supp_cost) and warehouse_account.get(self.supplier_warehouse):
 						gl_entries.append(self.get_gl_dict({
-							"account": warehouse_account[self.supplier_warehouse]["name"],
+							"account": warehouse_account[self.supplier_warehouse]["account"],
 							"against": warehouse_account[d.warehouse]["account"],
 							"cost_center": d.cost_center,
 							"remarks": self.get("remarks") or _("Accounting Entry for Stock"),
