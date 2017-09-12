@@ -8,7 +8,16 @@ frappe.pages['pos'].on_page_load = function (wrapper) {
 		single_column: true
 	});
 
-	wrapper.pos = new erpnext.pos.PointOfSale(wrapper)
+	frappe.db.get_value('POS Settings', {name: 'POS Settings'}, 'is_online', (r) => {
+		if (r && r.use_pos_in_offline_mode && cint(r.use_pos_in_offline_mode)) {
+			// offline
+			wrapper.pos = new erpnext.pos.PointOfSale(wrapper);
+			cur_pos = wrapper.pos;
+		} else {
+			// online
+			frappe.set_route('point-of-sale');
+		}
+	});
 }
 
 frappe.pages['pos'].refresh = function (wrapper) {
@@ -426,11 +435,16 @@ erpnext.pos.PointOfSale = erpnext.taxes_and_totals.extend({
 		});
 
 		this.serach_item.make_input();
-		this.serach_item.$input.on("keyup", function () {
-			setTimeout(function () {
-				me.items = me.get_items();
-				me.make_item_list();
-			}, 1000);
+		
+		this.serach_item.$input.on("keypress", function (event) {
+
+			clearTimeout(me.last_search_timeout);
+			me.last_search_timeout = setTimeout(() => {
+				if((me.serach_item.$input.val() != "") || (event.which == 13)) {
+					me.items = me.get_items();
+					me.make_item_list();
+				}				
+			}, 400);
 		});
 
 		this.search_item_group = this.wrapper.find('.search-item-group');
@@ -727,14 +741,7 @@ erpnext.pos.PointOfSale = erpnext.taxes_and_totals.extend({
 
 					input = input.toLowerCase();
 					item = this.get_item(item.value);
-					var searchtext =
-						Object.keys(item)
-							.filter(key => ['customer_name', 'customer_group', 'value', 'label', 'email_id', 'phone', 'mobile_no'].includes(key))
-							.map(key => item[key])
-							.join(" ")
-							.toLowerCase();
-
-					return searchtext.includes(input)
+					return item.searchtext.includes(input)
 				},
 				item: function (item, input) {
 					var d = this.get_item(item.value);
@@ -808,7 +815,11 @@ erpnext.pos.PointOfSale = erpnext.taxes_and_totals.extend({
 				territory: c.territory,
 				phone: contact ? contact["phone"] : '',
 				mobile_no: contact ? contact["mobile_no"] : '',
-				email_id: contact ? contact["email_id"] : ''
+				email_id: contact ? contact["email_id"] : '',
+				searchtext: ['customer_name', 'customer_group', 'value',
+					'label', 'email_id', 'phone', 'mobile_no']
+					.map(key => c[key]).join(' ')
+					.toLowerCase()
 			}
 		});
 
@@ -979,6 +990,8 @@ erpnext.pos.PointOfSale = erpnext.taxes_and_totals.extend({
 	get_prompt_details: function() {
 		this.prompt_details = this.customer_doc.get_values();
 		this.prompt_details['country'] = this.pos_profile_data.country;
+		this.prompt_details['territory'] = this.pos_profile_data["territory"];
+		this.prompt_details['customer_group'] = this.pos_profile_data["customer_group"];
 		this.prompt_details['customer_pos_id'] = this.customer_doc.fields_dict.customer_pos_id.value;
 		return JSON.stringify(this.prompt_details)
 	},

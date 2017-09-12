@@ -20,6 +20,28 @@ def install(country=None):
 		{ 'doctype': 'Domain', 'domain': _('Services')},
 		{ 'doctype': 'Domain', 'domain': _('Education')},
 
+		# Setup Progress
+		{'doctype': "Setup Progress", "actions": [
+			{"action_name": _("Add Company"), "action_doctype": "Company", "min_doc_count": 1, "is_completed": 1,
+				"domains": '[]' },
+			{"action_name": _("Add Customers"), "action_doctype": "Customer", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Manufacturing", "Services", "Retail", "Distribution"]' },
+			{"action_name": _("Add Suppliers"), "action_doctype": "Supplier", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Manufacturing", "Services", "Retail", "Distribution"]' },
+			{"action_name": _("Add Products"), "action_doctype": "Item", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Manufacturing", "Services", "Retail", "Distribution"]' },
+			{"action_name": _("Add Programs"), "action_doctype": "Program", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Education"]' },
+			{"action_name": _("Add Instructors"), "action_doctype": "Instructor", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Education"]' },
+			{"action_name": _("Add Courses"), "action_doctype": "Course", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Education"]' },
+			{"action_name": _("Add Rooms"), "action_doctype": "Room", "min_doc_count": 1, "is_completed": 0,
+				"domains": '["Education"]' },
+			{"action_name": _("Add Users"), "action_doctype": "User", "min_doc_count": 4, "is_completed": 0,
+				"domains": '[]' }
+		]},
+
 		# address template
 		{'doctype':"Address Template", "country": country},
 
@@ -185,6 +207,10 @@ def install(country=None):
 		{'doctype': "Party Type", "party_type": "Supplier"},
 		{'doctype': "Party Type", "party_type": "Employee"},
 
+		{'doctype': "Project Type", "project_type": "Internal"},
+		{'doctype': "Project Type", "project_type": "External"},
+		{'doctype': "Project Type", "project_type": "Other"},
+
 		{"doctype": "Offer Term", "offer_term": _("Date of Joining")},
 		{"doctype": "Offer Term", "offer_term": _("Annual Salary")},
 		{"doctype": "Offer Term", "offer_term": _("Probationary Period")},
@@ -229,7 +255,7 @@ def install(country=None):
 
 		try:
 			doc.insert(ignore_permissions=True)
-		except frappe.DuplicateEntryError, e:
+		except frappe.DuplicateEntryError as e:
 			# pass DuplicateEntryError and continue
 			if e.args and e.args[0]==doc.doctype and e.args[1]==doc.name:
 				# make sure DuplicateEntryError is for the exact same doc and not a related doc

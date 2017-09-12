@@ -19,6 +19,7 @@ from erpnext.accounts.doctype.asset.depreciation \
 	import get_disposal_account_and_cost_center, get_gl_entries_on_asset_disposal
 from erpnext.stock.doctype.batch.batch import set_batch_nos
 from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos, get_delivery_note_serial_no
+from erpnext.setup.doctype.company.company import update_company_current_month_sales
 
 form_grid_templates = {
 	"items": "templates/form_grid/item_grid.html"
@@ -106,9 +107,9 @@ class SalesInvoice(SellingController):
 	def on_submit(self):
 		self.validate_pos_paid_amount()
 
-		if not self.recurring_id:
+		if not self.subscription:
 			frappe.get_doc('Authorization Control').validate_approving_authority(self.doctype,
-			 	self.company, self.base_grand_total, self)
+				self.company, self.base_grand_total, self)
 
 		self.check_prev_docstatus()
 
@@ -140,7 +141,7 @@ class SalesInvoice(SellingController):
 
 		self.update_time_sheet(self.name)
 
-		frappe.enqueue('erpnext.setup.doctype.company.company.update_company_current_month_sales', company=self.company)
+		self.update_current_month_sales()
 
 	def validate_pos_paid_amount(self):
 		if len(self.payments) == 0 and self.is_pos:
@@ -177,6 +178,15 @@ class SalesInvoice(SellingController):
 
 		self.make_gl_entries_on_cancel()
 		frappe.db.set(self, 'status', 'Cancelled')
+
+		self.update_current_month_sales()
+
+	def update_current_month_sales(self):
+		if frappe.flags.in_test:
+			update_company_current_month_sales(self.company)
+		else:
+			frappe.enqueue('erpnext.setup.doctype.company.company.update_company_current_month_sales',
+				company=self.company)
 
 	def update_status_updater_args(self):
 		if cint(self.update_stock):
@@ -303,7 +313,7 @@ class SalesInvoice(SellingController):
 
 			for fieldname in ('territory', 'naming_series', 'currency', 'taxes_and_charges', 'letter_head', 'tc_name',
 				'selling_price_list', 'company', 'select_print_heading', 'cash_bank_account',
-				'write_off_account', 'write_off_cost_center'):
+				'write_off_account', 'write_off_cost_center', 'apply_discount_on'):
 					if (not for_validate) or (for_validate and not self.get(fieldname)):
 						self.set(fieldname, pos.get(fieldname))
 
@@ -789,7 +799,7 @@ class SalesInvoice(SellingController):
 		for dn in set(updated_delivery_notes):
 			frappe.get_doc("Delivery Note", dn).update_billing_percentage(update_modified=update_modified)
 
-	def on_recurring(self, reference_doc):
+	def on_recurring(self, reference_doc, subscription_doc):
 		for fieldname in ("c_form_applicable", "c_form_no", "write_off_amount"):
 			self.set(fieldname, reference_doc.get(fieldname))
 

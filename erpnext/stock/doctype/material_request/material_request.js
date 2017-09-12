@@ -36,9 +36,14 @@ frappe.ui.form.on("Material Request Item", {
 			frappe.msgprint(__("Warning: Material Requested Qty is less than Minimum Order Qty"));
 		}
 	},
+
 	item_code: function(frm, doctype, name) {
 		frm.script_manager.copy_from_first_row('items', frm.selected_doc,
 			'schedule_date');
+	},
+
+	schedule_date: function(frm, cdt, cdn) {
+		erpnext.utils.copy_value_in_all_row(frm.doc, cdt, cdn, "items", "schedule_date");
 	}
 });
 
@@ -148,9 +153,11 @@ erpnext.buying.MaterialRequestController = erpnext.buying.BuyingController.exten
 					if(!r.message) {
 						frappe.throw(__("BOM does not contain any stock item"))
 					} else {
+						erpnext.utils.remove_empty_first_row(cur_frm, "items");
 						$.each(r.message, function(i, item) {
 							var d = frappe.model.add_child(cur_frm.doc, "Material Request Item", "items");
 							d.item_code = item.item_code;
+							d.item_name = item.item_name;
 							d.description = item.description;
 							d.warehouse = values.warehouse;
 							d.uom = item.stock_uom;

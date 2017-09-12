@@ -27,6 +27,8 @@ doctype_js = {
 # setup wizard
 setup_wizard_requires = "assets/erpnext/js/setup_wizard.js"
 setup_wizard_complete = "erpnext.setup.setup_wizard.setup_wizard.setup_complete"
+setup_wizard_success = "erpnext.setup.setup_wizard.setup_wizard.setup_success"
+setup_wizard_test = "erpnext.setup.setup_wizard.test_setup_wizard.run_setup_wizard_test"
 
 before_install = "erpnext.setup.install.check_setup_wizard_not_completed"
 after_install = "erpnext.setup.install.after_install"
@@ -34,6 +36,8 @@ after_install = "erpnext.setup.install.after_install"
 boot_session = "erpnext.startup.boot.boot_session"
 notification_config = "erpnext.startup.notifications.get_notification_config"
 get_help_messages = "erpnext.utilities.activation.get_help_messages"
+get_user_progress_slides = "erpnext.utilities.user_progress.get_user_progress_slides"
+update_and_get_user_progress = "erpnext.utilities.user_progress_utils.update_default_domain_actions_and_get_state"
 
 on_session_creation = "erpnext.shopping_cart.utils.set_cart_count"
 on_logout = "erpnext.shopping_cart.utils.clear_cart_count"
@@ -50,7 +54,8 @@ calendars = ["Task", "Production Order", "Leave Application", "Sales Order", "Ho
 
 fixtures = ["Web Form"]
 
-website_generators = ["Item Group", "Item", "BOM", "Sales Partner", "Job Opening", "Student Admission"]
+website_generators = ["Item Group", "Item", "BOM", "Sales Partner",
+	"Job Opening", "Student Admission"]
 
 website_context = {
 	"favicon": 	"/assets/erpnext/images/favicon.png",
@@ -62,49 +67,49 @@ website_route_rules = [
 	{"from_route": "/orders/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Sales Order",
-			"parents": [{"title": _("Orders"), "name": "orders"}]
+			"parents": [{"label": _("Orders"), "route": "orders"}]
 		}
 	},
 	{"from_route": "/invoices", "to_route": "Sales Invoice"},
 	{"from_route": "/invoices/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Sales Invoice",
-			"parents": [{"title": _("Invoices"), "name": "invoices"}]
+			"parents": [{"label": _("Invoices"), "route": "invoices"}]
 		}
 	},
 	{"from_route": "/supplier-quotations", "to_route": "Supplier Quotation"},
 	{"from_route": "/supplier-quotations/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Supplier Quotation",
-			"parents": [{"title": _("Supplier Quotation"), "name": "quotations"}]
+			"parents": [{"label": _("Supplier Quotation"), "route": "quotations"}]
 		}
 	},
 	{"from_route": "/quotations", "to_route": "Quotation"},
 	{"from_route": "/quotations/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Quotation",
-			"parents": [{"title": _("Quotations"), "name": "quotation"}]
+			"parents": [{"label": _("Quotations"), "route": "quotations"}]
 		}
 	},
 	{"from_route": "/shipments", "to_route": "Delivery Note"},
 	{"from_route": "/shipments/<path:name>", "to_route": "order",
 		"defaults": {
 			"doctype": "Delivery Note",
-			"parents": [{"title": _("Shipments"), "name": "shipments"}]
+			"parents": [{"label": _("Shipments"), "route": "shipments"}]
 		}
 	},
 	{"from_route": "/rfq", "to_route": "Request for Quotation"},
 	{"from_route": "/rfq/<path:name>", "to_route": "rfq",
 		"defaults": {
 			"doctype": "Request for Quotation",
-			"parents": [{"title": _("Request for Quotation"), "name": "rfq"}]
+			"parents": [{"label": _("Request for Quotation"), "route": "rfq"}]
 		}
 	},
 	{"from_route": "/addresses", "to_route": "Address"},
 	{"from_route": "/addresses/<path:name>", "to_route": "addresses",
 		"defaults": {
 			"doctype": "Address",
-			"parents": [{"title": _("Addresses"), "name": "addresses"}]
+			"parents": [{"label": _("Addresses"), "route": "addresses"}]
 		}
 	},
 	{"from_route": "/jobs", "to_route": "Job Opening"},
@@ -179,7 +184,7 @@ doc_events = {
 
 scheduler_events = {
 	"hourly": [
-		"erpnext.controllers.recurring_document.create_recurring_documents",
+		"erpnext.subscription.doctype.subscription.subscription.make_subscription_entry",
 		'erpnext.hr.doctype.daily_work_summary_settings.daily_work_summary_settings.trigger_emails'
 	],
 	"daily": [
@@ -195,17 +200,21 @@ scheduler_events = {
 		"erpnext.hr.doctype.daily_work_summary_settings.daily_work_summary_settings.send_summary",
 		"erpnext.stock.doctype.serial_no.serial_no.update_maintenance_status",
 		"erpnext.buying.doctype.supplier_scorecard.supplier_scorecard.refresh_scorecards",
-		"erpnext.setup.doctype.company.company.cache_companies_monthly_sales_history"
+		"erpnext.setup.doctype.company.company.cache_companies_monthly_sales_history",
+		"erpnext.manufacturing.doctype.bom_update_tool.bom_update_tool.update_latest_price_in_all_boms",
 	]
 }
 
 email_brand_image = "assets/erpnext/images/erpnext-logo.jpg"
 
-default_mail_footer = """<div style="text-align: center;">
-	<a href="https://erpnext.com?source=via_email_footer" target="_blank" style="color: #8d99a6;">
-		Sent via ERPNext
-	</a>
-</div>"""
+default_mail_footer = """
+	<span>
+		Sent via
+		<a class="text-muted" href="https://erpnext.com?source=via_email_footer" target="_blank">
+			ERPNext
+		</a>
+	</span>
+"""
 
 get_translated_dict = {
 	("doctype", "Global Defaults"): "frappe.geo.country_info.get_translated_dict"

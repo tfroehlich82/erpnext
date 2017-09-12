@@ -28,7 +28,7 @@ frappe.ui.form.on('Payment Entry', {
 		frm.set_query("party_type", function() {
 			return{
 				"filters": {
-					"name": ["in",["Customer","Supplier"]],
+					"name": ["in",["Customer","Supplier", "Employee"]],
 				}
 			}
 		});
@@ -70,6 +70,8 @@ frappe.ui.form.on('Payment Entry', {
 				var doctypes = ["Sales Order", "Sales Invoice", "Journal Entry"];
 			} else if (frm.doc.party_type=="Supplier") {
 				var doctypes = ["Purchase Order", "Purchase Invoice", "Journal Entry"];
+			} else if (frm.doc.party_type=="Employee") {
+				var doctypes = ["Expense Claim", "Journal Entry"];
 			} else {
 				var doctypes = ["Journal Entry"];
 			}
@@ -82,10 +84,16 @@ frappe.ui.form.on('Payment Entry', {
 		frm.set_query("reference_name", "references", function(doc, cdt, cdn) {
 			child = locals[cdt][cdn];
 			filters = {"docstatus": 1, "company": doc.company};
-			party_type_doctypes = ['Sales Invoice', 'Sales Order', 'Purchase Invoice', 'Purchase Order'];
+			party_type_doctypes = ['Sales Invoice', 'Sales Order', 'Purchase Invoice', 
+				'Purchase Order', 'Expense Claim'];
 
 			if (in_list(party_type_doctypes, child.reference_doctype)) {
 				filters[doc.party_type.toLowerCase()] = doc.party;
+			}
+
+			if(child.reference_doctype == "Expense Claim") {
+				filters["status"] = "Approved";
+				filters["is_paid"] = 0;
 			}
 
 			return {
@@ -200,9 +208,15 @@ frappe.ui.form.on('Payment Entry', {
 			});
 		} else {
 			if(!frm.doc.party)
-				frm.set_value("party_type", frm.doc.payment_type=="Receive" ? "Customer" : "Supplier");
+			{
+				if (frm.doc.payment_type=="Receive"){
+					frm.set_value("party_type", "Customer");
+				}
+			}
 			else
+			{
 				frm.events.party(frm);
+			}
 
 			if(frm.doc.mode_of_payment)
 				frm.events.mode_of_payment(frm);
@@ -339,7 +353,8 @@ frappe.ui.form.on('Payment Entry', {
 					method: "erpnext.setup.utils.get_exchange_rate",
 					args: {
 						from_currency: frm.doc.paid_from_account_currency,
-						to_currency: company_currency
+						to_currency: company_currency,
+						transaction_date: frm.doc.posting_date
 					},
 					callback: function(r, rt) {
 						frm.set_value("source_exchange_rate", r.message);
@@ -484,9 +499,10 @@ frappe.ui.form.on('Payment Entry', {
 						var c = frm.add_child("references");
 						c.reference_doctype = d.voucher_type;
 						c.reference_name = d.voucher_no;
+						c.due_date = d.due_date
 						c.total_amount = d.invoice_amount;
 						c.outstanding_amount = d.outstanding_amount;
-						if(!in_list(["Sales Order", "Purchase Order"], d.voucher_type)) {
+						if(!in_list(["Sales Order", "Purchase Order", "Expense Claim"], d.voucher_type)) {
 							if(flt(d.outstanding_amount) > 0)
 								total_positive_outstanding += flt(d.outstanding_amount);
 							else
@@ -501,14 +517,15 @@ frappe.ui.form.on('Payment Entry', {
 						} else {
 							c.exchange_rate = 1;
 						}
-						if (in_list(['Sales Invoice', 'Purchase Invoice'], d.reference_doctype)){
+						if (in_list(['Sales Invoice', 'Purchase Invoice', "Expense Claim"], d.reference_doctype)){
 							c.due_date = d.due_date;
 						}
 					});
 
 					if(
 						(frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
-						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier")
+						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier")  ||
+						(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee")
 					) {
 						if(total_positive_outstanding > total_negative_outstanding)
 							frm.set_value("paid_amount",
@@ -552,8 +569,9 @@ frappe.ui.form.on('Payment Entry', {
 		})
 
 		var allocated_negative_outstanding = 0;
-		if((frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
-				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier")) {
+		if ((frm.doc.payment_type=="Receive" && frm.doc.party_type=="Customer") ||
+				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Supplier") ||
+				(frm.doc.payment_type=="Pay" && frm.doc.party_type=="Employee")) {
 			if(total_positive_outstanding_including_order > paid_amount) {
 				var remaining_outstanding = total_positive_outstanding_including_order - paid_amount;
 				allocated_negative_outstanding = total_negative_outstanding < remaining_outstanding ?
@@ -561,7 +579,7 @@ frappe.ui.form.on('Payment Entry', {
 			}
 
 			var allocated_positive_outstanding =  paid_amount + allocated_negative_outstanding;
-		} else {
+		} else if (in_list(["Customer", "Supplier"], frm.doc.party_type)) {
 			if(paid_amount > total_negative_outstanding) {
 				if(total_negative_outstanding == 0) {
 					frappe.msgprint(__("Cannot {0} {1} {2} without any negative outstanding invoice",
@@ -626,16 +644,9 @@ frappe.ui.form.on('Payment Entry', {
 		if(frm.doc.party) {
 			var party_amount = frm.doc.payment_type=="Receive" ?
 				frm.doc.paid_amount : frm.doc.received_amount;
-				
-			var total_deductions = frappe.utils.sum($.map(frm.doc.deductions || [],
-				function(d) { return flt(d.amount) }));
 
 			if(frm.doc.total_allocated_amount < party_amount) {
-				if(frm.doc.payment_type == "Receive") {
-					unallocated_amount = party_amount - (frm.doc.total_allocated_amount - total_deductions);
-				} else {
-					unallocated_amount = party_amount - (frm.doc.total_allocated_amount + total_deductions);
-				}
+				unallocated_amount = party_amount - frm.doc.total_allocated_amount;
 			}
 		}
 		frm.set_value("unallocated_amount", unallocated_amount);
@@ -654,11 +665,10 @@ frappe.ui.form.on('Payment Entry', {
 			difference_amount = flt(frm.doc.base_paid_amount) - flt(frm.doc.base_received_amount);
 		}
 
-		$.each(frm.doc.deductions || [], function(i, d) {
-			if(d.amount) difference_amount -= flt(d.amount);
-		})
+		var total_deductions = frappe.utils.sum($.map(frm.doc.deductions || [],
+			function(d) { return flt(d.amount) }));
 
-		frm.set_value("difference_amount", difference_amount);
+		frm.set_value("difference_amount", difference_amount - total_deductions);
 
 		frm.events.hide_unhide_fields(frm);
 	},
@@ -692,6 +702,14 @@ frappe.ui.form.on('Payment Entry', {
 			) {
 				frappe.model.set_value(row.doctype, row.name, "against_voucher_type", null);
 				frappe.msgprint(__("Row #{0}: Reference Document Type must be one of Purchase Order, Purchase Invoice or Journal Entry", [row.idx]));
+				return false;
+			}
+			
+			if(frm.doc.party_type=="Employee" &&
+				!in_list(["Expense Claim", "Journal Entry"], row.reference_doctype)
+			) {
+				frappe.model.set_value(row.doctype, row.name, "against_voucher_type", null);
+				frappe.msgprint(__("Row #{0}: Reference Document Type must be one of Expense Claim or Journal Entry", [row.idx]));
 				return false;
 			}
 		}

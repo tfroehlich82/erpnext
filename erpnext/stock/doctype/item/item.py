@@ -132,7 +132,8 @@ class Item(WebsiteGenerator):
 		from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 
 		# default warehouse, or Stores
-		default_warehouse = (frappe.db.get_single_value('Stock Settings', 'default_warehouse')
+		default_warehouse = (self.default_warehouse
+			or frappe.db.get_single_value('Stock Settings', 'default_warehouse')
 			or frappe.db.get_value('Warehouse', {'warehouse_name': _('Stores')}))
 
 		if default_warehouse:
@@ -487,6 +488,8 @@ class Item(WebsiteGenerator):
 	def validate_warehouse_for_reorder(self):
 		warehouse = []
 		for i in self.get("reorder_levels"):
+			if not i.warehouse_group:
+				i.warehouse_group = i.warehouse
 			if i.get("warehouse") and i.get("warehouse") not in warehouse:
 				warehouse += [i.get("warehouse")]
 			else:
@@ -696,7 +699,7 @@ def _msgprint(msg, verbose):
 	if verbose:
 		msgprint(msg, raise_exception=True)
 	else:
-		raise frappe.ValidationError, msg
+		raise frappe.ValidationError(msg)
 
 
 def get_last_purchase_details(item_code, doc_name=None, conversion_rate=1.0):

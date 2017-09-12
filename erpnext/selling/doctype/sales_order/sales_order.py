@@ -11,9 +11,9 @@ from frappe.model.utils import get_fetch_values
 from frappe.model.mapper import get_mapped_doc
 from erpnext.stock.stock_balance import update_bin_qty, get_reserved_qty
 from frappe.desk.notifications import clear_doctype_notifications
-from erpnext.controllers.recurring_document import month_map, get_next_date
 from frappe.contacts.doctype.address.address import get_company_address
 from erpnext.controllers.selling_controller import SellingController
+from erpnext.subscription.doctype.subscription.subscription import month_map, get_next_date
 
 form_grid_templates = {
 	"items": "templates/form_grid/item_grid.html"
@@ -51,9 +51,9 @@ class SalesOrder(SellingController):
 		# validate p.o date v/s delivery date
 		if self.po_date:
 			for d in self.get("items"):
-				 if d.delivery_date and getdate(self.po_date) > getdate(d.delivery_date):
-					 frappe.throw(_("Row #{0}: Expected Delivery Date cannot be before Purchase Order Date")
-					 	.format(d.idx))
+				if d.delivery_date and getdate(self.po_date) > getdate(d.delivery_date):
+					frappe.throw(_("Row #{0}: Expected Delivery Date cannot be before Purchase Order Date")
+						.format(d.idx))
 
 		if self.po_no and self.customer:
 			so = frappe.db.sql("select name from `tabSales Order` \
@@ -101,20 +101,20 @@ class SalesOrder(SellingController):
 		super(SalesOrder, self).validate_order_type()
 
 	def validate_delivery_date(self):
-		self.final_delivery_date = None
 		if self.order_type == 'Sales':
-			for d in self.get("items"):
-				if not d.delivery_date:
-					frappe.throw(_("Row #{0}: Please enter Delivery Date against item {1}")
-						.format(d.idx, d.item_code))
+			if not self.delivery_date:
+				self.delivery_date = max([d.delivery_date for d in self.get("items")])
 
-				if getdate(self.transaction_date) > getdate(d.delivery_date):
-					frappe.msgprint(_("Expected Delivery Date should be after Sales Order Date"),
-						indicator='orange', title=_('Warning'))
-
-				if not self.final_delivery_date or \
-					(d.delivery_date and getdate(d.delivery_date) > getdate(self.final_delivery_date)):
-						self.final_delivery_date = d.delivery_date
+			if self.delivery_date:
+				for d in self.get("items"):
+					if not d.delivery_date:
+						d.delivery_date = self.delivery_date
+					
+					if getdate(self.transaction_date) > getdate(d.delivery_date):
+						frappe.msgprint(_("Expected Delivery Date should be after Sales Order Date"),
+							indicator='orange', title=_('Warning'))
+			else:
+				frappe.throw(_("Please enter Delivery Date"))
 
 		self.validate_sales_mntc_quotation()
 
@@ -330,29 +330,33 @@ class SalesOrder(SellingController):
 	def get_production_order_items(self):
 		'''Returns items with BOM that already do not have a linked production order'''
 		items = []
-		for i in self.packed_items or self.items:
-			bom = frappe.get_all('BOM', dict(item=i.item_code, is_active=True),
-					order_by='is_default desc')
-			bom = bom[0].name if bom else None
-			stock_qty = i.qty if self.packed_items else i.stock_qty
-			items.append(dict(
-				item_code= i.item_code,
-				bom = bom,
-				warehouse = i.warehouse,
-				pending_qty= stock_qty - flt(frappe.db.sql('''select sum(qty) from `tabProduction Order`
-					where production_item=%s and sales_order=%s''', (i.item_code, self.name))[0][0])
-			))
+
+		for table in [self.items, self.packed_items]:
+			for i in table:
+				bom = get_default_bom_item(i.item_code)
+				if bom:
+					stock_qty = i.qty if i.doctype == 'Packed Item' else i.stock_qty
+					items.append(dict(
+						item_code= i.item_code,
+						bom = bom,
+						warehouse = i.warehouse,
+						pending_qty= stock_qty - flt(frappe.db.sql('''select sum(qty) from `tabProduction Order`
+							where production_item=%s and sales_order=%s''', (i.item_code, self.name))[0][0])
+					))
 
 		return items
 
-	def on_recurring(self, reference_doc):
-		mcount = month_map[reference_doc.recurring_type]
+	def on_recurring(self, reference_doc, subscription_doc):
+		mcount = month_map[subscription_doc.frequency]
+		self.set("delivery_date", get_next_date(reference_doc.delivery_date, mcount,
+			cint(subscription_doc.repeat_on_day)))
+
 		for d in self.get("items"):
 			reference_delivery_date = frappe.db.get_value("Sales Order Item",
 				{"parent": reference_doc.name, "item_code": d.item_code, "idx": d.idx}, "delivery_date")
 
 			d.set("delivery_date",
-				get_next_date(reference_delivery_date, mcount, cint(reference_doc.repeat_on_day_of_month)))
+				get_next_date(reference_delivery_date, mcount, cint(subscription_doc.repeat_on_day)))
 
 def get_list_context(context=None):
 	from erpnext.controllers.website_list_for_contact import get_list_context
@@ -462,6 +466,11 @@ def make_delivery_note(source_name, target_doc=None):
 		target.ignore_pricing_rule = 1
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
+		
+		# set company address
+		target.update(get_company_address(target.company))
+		if target.company_address:
+			target.update(get_fetch_values("Delivery Note", 'company_address', target.company_address))
 
 	def update_item(source, target, source_parent):
 		target.base_amount = (flt(source.qty) - flt(source.delivered_qty)) * flt(source.base_rate)
@@ -627,14 +636,15 @@ def get_events(start, end, filters=None):
 
 	data = frappe.db.sql("""
 		select
-			so.name, so.customer_name, so.status,
-			so.delivery_status, so.billing_status, so_item.delivery_date
+			`tabSales Order`.name, `tabSales Order`.customer_name, `tabSales Order`.status,
+			`tabSales Order`.delivery_status, `tabSales Order`.billing_status,
+			`tabSales Order Item`.delivery_date
 		from
-			`tabSales Order` so, `tabSales Order Item` so_item
-		where so.name = so_item.parent
-			and (ifnull(so_item.delivery_date, '0000-00-00')!= '0000-00-00') \
-			and (so_item.delivery_date between %(start)s and %(end)s)
-			and so.docstatus < 2
+			`tabSales Order`, `tabSales Order Item`
+		where `tabSales Order`.name = `tabSales Order Item`.parent
+			and (ifnull(`tabSales Order Item`.delivery_date, '0000-00-00')!= '0000-00-00') \
+			and (`tabSales Order Item`.delivery_date between %(start)s and %(end)s)
+			and `tabSales Order`.docstatus < 2
 			{conditions}
 		""".format(conditions=conditions), {
 			"start": start,
@@ -770,3 +780,10 @@ def make_production_orders(items, sales_order, company, project=None):
 def update_status(status, name):
 	so = frappe.get_doc("Sales Order", name)
 	so.update_status(status)
+
+def get_default_bom_item(item_code):
+	bom = frappe.get_all('BOM', dict(item=item_code, is_active=True),
+			order_by='is_default desc')
+	bom = bom[0].name if bom else None
+
+	return bom

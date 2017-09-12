@@ -86,7 +86,11 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 					this.make_payment_request, __("Make"));
 			}
 
-
+			if(!doc.subscription) {
+				cur_frm.add_custom_button(__('Subscription'), function() {
+					erpnext.utils.make_subscription(doc.doctype, doc.name)
+				}, __("Make"))
+			}
 		}
 
 		// Show buttons only when pos view is active
@@ -325,23 +329,6 @@ erpnext.accounts.SalesInvoiceController = erpnext.selling.SellingController.exte
 		}
 
 		this.frm.refresh_fields();
-	},
-
-	company_address: function() {
-		var me = this;
-		if(this.frm.doc.company_address) {
-			frappe.call({
-				method: "frappe.contacts.doctype.address.address.get_address_display",
-				args: {"address_dict": this.frm.doc.company_address },
-				callback: function(r) {
-					if(r.message) {
-						me.frm.set_value("company_address_display", r.message)
-					}
-				}
-			})
-		} else {
-			this.frm.set_value("company_address_display", "");
-		}
 	}
 });
 

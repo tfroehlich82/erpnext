@@ -273,7 +273,7 @@ class ProductionOrder(Document):
 		timesheets = []
 		plan_days = frappe.db.get_single_value("Manufacturing Settings", "capacity_planning_for_days") or 30
 
-		timesheet = make_timesheet(self.name)
+		timesheet = make_timesheet(self.name, self.company)
 		timesheet.set('time_logs', [])
 
 		for i, d in enumerate(self.operations):
@@ -515,9 +515,16 @@ def check_if_scrap_warehouse_mandatory(bom_no):
 	return res
 
 @frappe.whitelist()
+def set_production_order_ops(name):
+	po = frappe.get_doc('Production Order', name)
+	po.set_production_order_operations()
+	po.save()
+
+@frappe.whitelist()
 def make_stock_entry(production_order_id, purpose, qty=None):
 	production_order = frappe.get_doc("Production Order", production_order_id)
-	if not frappe.db.get_value("Warehouse", production_order.wip_warehouse, "is_group"):
+	if not frappe.db.get_value("Warehouse", production_order.wip_warehouse, "is_group") \
+			and not production_order.skip_transfer:
 		wip_warehouse = production_order.wip_warehouse
 	else:
 		wip_warehouse = None
@@ -569,10 +576,11 @@ def get_events(start, end, filters=None):
 	return data
 
 @frappe.whitelist()
-def make_timesheet(production_order):
+def make_timesheet(production_order, company):
 	timesheet = frappe.new_doc("Timesheet")
 	timesheet.employee = ""
 	timesheet.production_order = production_order
+	timesheet.company = company
 	return timesheet
 
 @frappe.whitelist()
