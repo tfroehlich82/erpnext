@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 import frappe, os, json
-from frappe.custom.doctype.custom_field.custom_field import create_custom_field
+from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.permissions import add_permission
 from erpnext.regional.india import states
 
@@ -12,7 +12,7 @@ def setup(company=None, patch=True):
 	make_custom_fields()
 	add_permissions()
 	add_custom_roles_for_reports()
-	add_hsn_sac_codes()
+	frappe.enqueue('erpnext.regional.india.setup.add_hsn_sac_codes')
 	add_print_formats()
 	if not patch:
 		update_address_template()
@@ -47,12 +47,14 @@ def add_hsn_sac_codes():
 
 def create_hsn_codes(data, code_field):
 	for d in data:
-		if not frappe.db.exists("GST HSN Code", d[code_field]):
-			hsn_code = frappe.new_doc('GST HSN Code')
-			hsn_code.description = d["description"]
-			hsn_code.hsn_code = d[code_field]
-			hsn_code.name = d[code_field]
+		hsn_code = frappe.new_doc('GST HSN Code')
+		hsn_code.description = d["description"]
+		hsn_code.hsn_code = d[code_field]
+		hsn_code.name = d[code_field]
+		try:
 			hsn_code.db_insert()
+		except frappe.DuplicateEntryError:
+			pass
 
 def add_custom_roles_for_reports():
 	for report_name in ('GST Sales Register', 'GST Purchase Register',
@@ -148,15 +150,7 @@ def make_custom_fields():
 		'Purchase Invoice Item': [hsn_sac_field]
 	}
 
-	for doctype, fields in custom_fields.items():
-		for df in fields:
-			field = frappe.db.get_value("Custom Field", {"dt": doctype, "fieldname": df["fieldname"]})
-			if not field:
-				create_custom_field(doctype, df)
-			else:
-				custom_field = frappe.get_doc("Custom Field", field)
-				custom_field.update(df)
-				custom_field.save()
+	create_custom_fields(custom_fields)
 
 def make_fixtures():
 	docs = [

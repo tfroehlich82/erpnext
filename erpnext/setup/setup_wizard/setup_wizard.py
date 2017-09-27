@@ -10,6 +10,7 @@ from frappe.utils import cstr, flt, getdate
 from frappe import _
 from frappe.utils.file_manager import save_file
 from .default_website import website_maker
+from .healthcare import setup_healthcare
 import install_fixtures
 from .sample_data import make_sample_data
 from erpnext.accounts.doctype.account.account import RootNotEditable
@@ -32,10 +33,14 @@ def setup_complete(args=None):
 	create_feed_and_todo()
 	create_email_digest()
 	create_letter_head(args)
+	set_no_copy_fields_in_variant_settings()
 
 	if args.get('domain').lower() == 'education':
 		create_academic_year()
 		create_academic_term()
+
+	if args.domain.lower() == 'healthcare':
+		setup_healthcare()
 
 	if args.get('setup_website'):
 		website_maker(args)
@@ -60,10 +65,6 @@ def setup_complete(args=None):
 			frappe.message_log.pop()
 
 		pass
-
-def setup_success(args=None):
-	company = frappe.db.sql("select name from tabCompany", as_dict=True)[0]["name"]
-	install_country_fixtures(company)
 
 def create_fiscal_year_and_company(args):
 	if (args.get('fy_start_date')):
@@ -154,7 +155,9 @@ def set_defaults(args):
 
 	global_defaults.save()
 
-	frappe.db.set_value("System Settings", None, "email_footer_address", args.get("company"))
+	system_settings = frappe.get_doc("System Settings")
+	system_settings.email_footer_address = args.get("company")
+	system_settings.save()
 
 	stock_settings = frappe.get_doc("Stock Settings")
 	stock_settings.item_naming_by = "Item Code"
@@ -348,6 +351,12 @@ def create_letter_head(args):
 			fileurl = save_file(filename, content, "Letter Head", _("Standard"), decode=True).file_url
 			frappe.db.set_value("Letter Head", _("Standard"), "content", "<img src='%s' style='max-width: 100%%;'>" % fileurl)
 
+def set_no_copy_fields_in_variant_settings():
+	# set no copy fields of an item doctype to item variant settings
+	doc = frappe.get_doc('Item Variant Settings')
+	doc.set_default_fields()
+	doc.save()
+
 def create_logo(args):
 	if args.get("attach_logo"):
 		attach_logo = args.get("attach_logo").split(",")
@@ -414,3 +423,4 @@ def create_academic_year():
 			academic_year.save()
 		except frappe.DuplicateEntryError:
 			pass
+
