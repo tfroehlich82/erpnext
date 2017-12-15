@@ -10,7 +10,7 @@ import random, os, json
 from frappe import _
 from markdown2 import markdown
 
-def make_sample_data(domain, make_dependent = False):
+def make_sample_data(domains, make_dependent = False):
 	"""Create a few opportunities, quotes, material requests, issues, todos, projects
 	to help the user get started"""
 
@@ -28,7 +28,7 @@ def make_sample_data(domain, make_dependent = False):
 		if items and warehouses:
 			make_material_request(frappe.get_all("Item"))
 
-	make_projects(domain)
+	make_projects(domains)
 	import_email_alert()
 
 	frappe.db.commit()
@@ -38,7 +38,7 @@ def make_opportunity(items, customer):
 		"doctype": "Opportunity",
 		"enquiry_from": "Customer",
 		"customer": customer,
-		"enquiry_type": "Sales",
+		"opportunity_type": _("Sales"),
 		"with_items": 1
 	})
 
@@ -89,7 +89,7 @@ def make_material_request(items):
 def make_issue():
 	pass
 
-def make_projects(domain):
+def make_projects(domains):
 	current_date = frappe.utils.nowdate()
 	project = frappe.get_doc({
 		"doctype": "Project",
@@ -104,19 +104,19 @@ def make_projects(domain):
 			"file": "explore.md"
 		}]
 
-	if domain == 'Education':
+	if 'Education' in domains:
 		tasks += [
 			{
-				"title": _("Setup your School in ERPNext"),
+				"title": _("Setup your Institute in ERPNext"),
 				"start_date": current_date,
 				"end_date": frappe.utils.add_days(current_date, 1),
-				"file": "school_masters.md"
+				"file": "education_masters.md"
 			},
 			{
 				"title": "Setup Master Data",
 				"start_date": current_date,
 				"end_date": frappe.utils.add_days(current_date, 1),
-				"file": "school_masters.md"
+				"file": "education_masters.md"
 			}]
 
 	else:

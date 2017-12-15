@@ -165,6 +165,7 @@ def item_query(doctype, txt, searchfield, start, page_len, filters, as_dict=Fals
 			and (tabItem.`{key}` LIKE %(txt)s
 				or tabItem.item_group LIKE %(txt)s
 				or tabItem.item_name LIKE %(txt)s
+				or tabItem.barcode LIKE %(txt)s
 				or tabItem.description LIKE %(txt)s)
 			{fcond} {mcond}
 		order by
@@ -172,7 +173,8 @@ def item_query(doctype, txt, searchfield, start, page_len, filters, as_dict=Fals
 			if(locate(%(_txt)s, item_name), locate(%(_txt)s, item_name), 99999),
 			idx desc,
 			name, item_name
-		limit %(start)s, %(page_len)s """.format(key=searchfield,
+		limit %(start)s, %(page_len)s """.format(
+			key=searchfield,
 			fcond=get_filters_cond(doctype, filters, conditions).replace('%', '%%'),
 			mcond=get_match_cond(doctype).replace('%', '%%')),
 			{
@@ -202,8 +204,8 @@ def bom(doctype, txt, searchfield, start, page_len, filters):
 		{
 			'txt': "%%%s%%" % frappe.db.escape(txt),
 			'_txt': txt.replace("%", ""),
-			'start': start,
-			'page_len': page_len
+			'start': start or 0,
+			'page_len': page_len or 20
 		})
 
 def get_project_name(doctype, txt, searchfield, start, page_len, filters):
@@ -408,3 +410,14 @@ def get_doctype_wise_filters(filters):
 	for row in filters:
 		filter_dict[row[0]].append(row)
 	return filter_dict
+
+
+@frappe.whitelist()
+def get_batch_numbers(doctype, txt, searchfield, start, page_len, filters):
+	query = 'select batch_id from `tabBatch` ' \
+			'where (`tabBatch`.expiry_date >= CURDATE() or `tabBatch`.expiry_date IS NULL)'
+
+	if filters and filters.get('item_code'):
+		query += 'where item = %(item_code)s' % filters
+
+	return frappe.db.sql(query)

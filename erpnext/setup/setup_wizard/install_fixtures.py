@@ -14,12 +14,14 @@ default_lead_sources = ["Existing Customer", "Reference", "Advertisement",
 def install(country=None):
 	records = [
 		# domains
-		{ 'doctype': 'Domain', 'domain': _('Distribution')},
-		{ 'doctype': 'Domain', 'domain': _('Manufacturing')},
-		{ 'doctype': 'Domain', 'domain': _('Retail')},
-		{ 'doctype': 'Domain', 'domain': _('Services')},
-		{ 'doctype': 'Domain', 'domain': _('Education')},
-		{ 'doctype': 'Domain', 'domain': _('Healthcare')},
+		{ 'doctype': 'Domain', 'domain': 'Distribution'},
+		{ 'doctype': 'Domain', 'domain': 'Manufacturing'},
+		{ 'doctype': 'Domain', 'domain': 'Retail'},
+		{ 'doctype': 'Domain', 'domain': 'Services'},
+		{ 'doctype': 'Domain', 'domain': 'Education'},
+		{ 'doctype': 'Domain', 'domain': 'Healthcare'},
+		{ 'doctype': 'Domain', 'domain': 'Agriculture'},
+		{ 'doctype': 'Domain', 'domain': 'Non Profit'},
 
 		# Setup Progress
 		{'doctype': "Setup Progress", "actions": [
@@ -44,6 +46,8 @@ def install(country=None):
 			{"action_name": "Add Rooms", "action_doctype": "Room", "min_doc_count": 1, "is_completed": 0,
 				"domains": '["Education"]' },
 			{"action_name": "Add Users", "action_doctype": "User", "min_doc_count": 4, "is_completed": 0,
+				"domains": '[]' },
+			{"action_name": "Add Letterhead", "action_doctype": "Letter Head", "min_doc_count": 1, "is_completed": 0,
 				"domains": '[]' }
 		]},
 
@@ -211,6 +215,12 @@ def install(country=None):
 		{'doctype': "Party Type", "party_type": "Customer"},
 		{'doctype': "Party Type", "party_type": "Supplier"},
 		{'doctype': "Party Type", "party_type": "Employee"},
+		{'doctype': "Party Type", "party_type": "Member"},
+
+		{'doctype': "Opportunity Type", "name": "Hub"},
+		{'doctype': "Opportunity Type", "name": _("Sales")},
+		{'doctype': "Opportunity Type", "name": _("Support")},
+		{'doctype': "Opportunity Type", "name": _("Maintenance")},
 
 		{'doctype': "Project Type", "project_type": "Internal"},
 		{'doctype': "Project Type", "project_type": "External"},

@@ -10,12 +10,10 @@ from frappe.utils import cstr, flt, getdate
 from frappe import _
 from frappe.utils.file_manager import save_file
 from .default_website import website_maker
-from .healthcare import setup_healthcare
 import install_fixtures
 from .sample_data import make_sample_data
 from erpnext.accounts.doctype.account.account import RootNotEditable
 from frappe.core.doctype.communication.comment import add_info_comment
-from erpnext.setup.setup_wizard.domainify import setup_domain
 from erpnext.setup.doctype.company.company import install_country_fixtures
 
 def setup_complete(args=None):
@@ -35,20 +33,16 @@ def setup_complete(args=None):
 	create_letter_head(args)
 	set_no_copy_fields_in_variant_settings()
 
-	if args.get('domain').lower() == 'education':
-		create_academic_year()
-		create_academic_term()
-
-	if args.domain.lower() == 'healthcare':
-		setup_healthcare()
-
 	if args.get('setup_website'):
 		website_maker(args)
 
 	create_logo(args)
 
 	frappe.local.message_log = []
-	setup_domain(args.get('domain'))
+
+	domains = args.get('domains')
+	domain_settings = frappe.get_single('Domain Settings')
+	domain_settings.set_active_domains(domains)
 
 	frappe.db.commit()
 	login_as_first_user(args)
@@ -57,7 +51,7 @@ def setup_complete(args=None):
 	frappe.clear_cache()
 
 	try:
-		make_sample_data(args.get('domain'))
+		make_sample_data(domains)
 		frappe.clear_cache()
 	except:
 		# clear message
@@ -88,7 +82,7 @@ def create_fiscal_year_and_company(args):
 			'country': args.get('country'),
 			'create_chart_of_accounts_based_on': 'Standard Template',
 			'chart_of_accounts': args.get('chart_of_accounts'),
-			'domain': args.get('domain')
+			'domain': args.get('domains')[0]
 		}).insert()
 
 		#Enable shopping cart
@@ -194,10 +188,6 @@ def set_defaults(args):
 	hr_settings.emp_created_by = "Naming Series"
 	hr_settings.save()
 
-	domain_settings = frappe.get_doc("Domain Settings")
-	domain_settings.append('active_domains', dict(domain=_(args.get('domain'))))
-	domain_settings.save()
-
 def create_feed_and_todo():
 	"""update Activity feed and create todo for creation of item, customer, vendor"""
 	add_info_comment(**{
@@ -266,7 +256,9 @@ def make_tax_account_and_template(company, account_name, tax_rate, template_name
 
 		accounts = []
 		for i, name in enumerate(account_name):
-			accounts.append(make_tax_account(company, account_name[i], tax_rate[i]))
+			tax_account = make_tax_account(company, account_name[i], tax_rate[i])
+			if tax_account:
+				accounts.append(tax_account)
 
 		if accounts:
 			make_sales_and_purchase_tax_templates(accounts, template_name)
@@ -399,28 +391,4 @@ def create_employee_for_self(args):
 	})
 	emp.flags.ignore_mandatory = True
 	emp.insert(ignore_permissions = True)
-
-# Schools
-def create_academic_term():
-	at = ["Semester 1", "Semester 2", "Semester 3"]
-	ay = ["2013-14", "2014-15", "2015-16", "2016-17", "2017-18"]
-	for y in ay:
-		for t in at:
-			academic_term = frappe.new_doc("Academic Term")
-			academic_term.academic_year = y
-			academic_term.term_name = t
-			try:
-				academic_term.save()
-			except frappe.DuplicateEntryError:
-				pass
-
-def create_academic_year():
-	ac = ["2013-14", "2014-15", "2015-16", "2016-17", "2017-18"]
-	for d in ac:
-		academic_year = frappe.new_doc("Academic Year")
-		academic_year.academic_year_name = d
-		try:
-			academic_year.save()
-		except frappe.DuplicateEntryError:
-			pass
 

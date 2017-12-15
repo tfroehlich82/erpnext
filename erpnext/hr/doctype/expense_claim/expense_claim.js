@@ -83,15 +83,26 @@ cur_frm.cscript.refresh = function(doc) {
 
 		if (doc.docstatus===1 && doc.approval_status=="Approved") {
 			/* eslint-disable */
-			// no idea how `me` works here 
-			if (cint(doc.total_amount_reimbursed) > 0 && frappe.model.can_read("Journal Entry")) {
+			// no idea how `me` works here
+			var entry_doctype, entry_reference_doctype, entry_reference_name;
+			if(doc.__onload.make_payment_via_journal_entry){
+				entry_doctype = "Journal Entry";
+				entry_reference_doctype = "Journal Entry Account.reference_type";
+				entry_reference_name = "Journal Entry.reference_name";
+			} else {
+				entry_doctype = "Payment Entry";
+				entry_reference_doctype = "Payment Entry Reference.reference_doctype";
+				entry_reference_name = "Payment Entry Reference.reference_name";
+			}
+
+			if (cint(doc.total_amount_reimbursed) > 0 && frappe.model.can_read(entry_doctype)) {
 				cur_frm.add_custom_button(__('Bank Entries'), function() {
 					frappe.route_options = {
-						"Journal Entry Account.reference_type": me.frm.doc.doctype,
-						"Journal Entry Account.reference_name": me.frm.doc.name,
+						entry_route_doctype: me.frm.doc.doctype,
+						entry_route_name: me.frm.doc.name,
 						company: me.frm.doc.company
 					};
-					frappe.set_route("List", "Journal Entry");
+					frappe.set_route("List", entry_doctype);
 				}, __("View"));
 			}
 			/* eslint-enable */
@@ -234,6 +245,34 @@ frappe.ui.form.on("Expense Claim", {
 
 	task: function(frm) {
 		erpnext.expense_claim.set_title(frm);
+	},
+
+	employee: function(frm) {
+		frm.events.get_advances(frm);
+	},
+
+	get_advances: function(frm) {
+		return frappe.call({
+			method: "erpnext.hr.doctype.expense_claim.expense_claim.get_advances",
+			args: {
+				employee: frm.doc.employee
+			},
+			callback: function(r, rt) {
+				frappe.model.clear_table(frm.doc, "advances");
+				if(r.message) {
+					$.each(r.message, function(i, d) {
+						var row = frappe.model.add_child(frm.doc, "Expense Claim Advance", "advances");
+						row.employee_advance = d.name;
+						row.posting_date = d.posting_date;
+						row.advance_account = d.advance_account;
+						row.advance_paid = d.paid_amount;
+						row.unclaimed_amount = flt(d.paid_amount) - flt(d.claimed_amount);
+						row.allocated_amount = flt(d.paid_amount) - flt(d.claimed_amount);
+					});
+					refresh_field("advances");
+				}
+			}
+		});
 	}
 });
 

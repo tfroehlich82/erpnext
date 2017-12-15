@@ -37,6 +37,10 @@ $.extend(erpnext, {
 		}
 	},
 
+	stale_rate_allowed: () => {
+		return cint(frappe.boot.sysdefaults.allow_stale);
+	},
+
 	setup_serial_no: function() {
 		var grid_row = cur_frm.open_grid_row();
 		if(!grid_row || !grid_row.grid_form.fields_dict.serial_no ||
@@ -256,7 +260,7 @@ erpnext.utils.map_current_doc = function(opts) {
 			action: function(selections, args) {
 				let values = selections;
 				if(values.length === 0){
-					frappe.msgprint(__("Please select Quotations"))
+					frappe.msgprint(__("Please select {0}", [opts.source_doctype]))
 					return;
 				}
 				opts.source_name = values;
