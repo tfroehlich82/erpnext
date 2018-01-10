@@ -193,9 +193,10 @@ erpnext.pos.PointOfSale = class PointOfSale {
 		// add to cur_frm
 		const item = this.frm.add_child('items', args);
 		frappe.flags.hide_serial_batch_dialog = true;
-		this.frm.script_manager
-			.trigger('item_code', item.doctype, item.name)
-			.then(() => {
+
+		frappe.run_serially([
+			() => this.frm.script_manager.trigger('item_code', item.doctype, item.name),
+			() => {
 				const show_dialog = item.has_serial_no || item.has_batch_no;
 
 				// if actual_batch_qty and actual_qty if then there is only one batch. In such
@@ -208,7 +209,8 @@ erpnext.pos.PointOfSale = class PointOfSale {
 					// update cart
 					this.update_cart_data(item);
 				}
-			});
+			}
+		]);
 	}
 
 	select_batch_and_serial_no(item) {
@@ -318,7 +320,7 @@ erpnext.pos.PointOfSale = class PointOfSale {
 		return new Promise((resolve) => {
 			const on_submit = ({ pos_profile, set_as_default }) => {
 				if (pos_profile) {
-					this.frm.doc.pos_profile = pos_profile;
+					this.pos_profile = pos_profile;
 				}
 
 				if (set_as_default) {
@@ -344,13 +346,19 @@ erpnext.pos.PointOfSale = class PointOfSale {
 	}
 
 	on_change_pos_profile() {
-		this.set_pos_profile_data()
-			.then(() => {
-				this.reset_cart();
-				if (this.items) {
-					this.items.reset_items();
-				}
-			});
+		return frappe.run_serially([
+			() => this.make_sales_invoice_frm(),
+			() => {
+				this.frm.doc.pos_profile = this.pos_profile;
+				this.set_pos_profile_data()
+					.then(() => {
+						this.reset_cart();
+						if (this.items) {
+							this.items.reset_items();
+						}
+					});
+			}
+		]);
 	}
 
 	get_promopt_fields() {
@@ -358,6 +366,7 @@ erpnext.pos.PointOfSale = class PointOfSale {
 			fieldtype: 'Link',
 			label: __('POS Profile'),
 			options: 'POS Profile',
+			reqd: 1,
 			get_query: () => {
 				return {
 					query: 'erpnext.accounts.doctype.pos_profile.pos_profile.pos_profile_query',
@@ -672,6 +681,11 @@ class POSCart {
 				fieldname: 'customer',
 				options: 'Customer',
 				reqd: 1,
+				get_query: function() {
+					return {
+						query: 'erpnext.controllers.queries.customer_query'
+					}
+				},
 				onchange: () => {
 					this.events.on_customer_change(this.customer_field.get_value());
 				}
@@ -1074,7 +1088,7 @@ class POSItems {
 			}
 			curr_row += all_items[i];
 
-			if(i == all_items.length - 1 && all_items.length % 4 !== 0) {
+			if(i == all_items.length - 1) {
 				row_items.push(curr_row);
 			}
 		}
@@ -1204,6 +1218,7 @@ class POSItems {
 		return new Promise(res => {
 			frappe.call({
 				method: "erpnext.selling.page.point_of_sale.point_of_sale.get_items",
+				freeze: true,
 				args: {
 					start,
 					page_length,
